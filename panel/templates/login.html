@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connexion — Palworld Panel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <form class="login-card" method="post" action="{{ url_for('login') }}">
+    <div class="login-logo">🐑</div>
+    <h1>Palworld Panel</h1>
+    <p class="muted">Administration du serveur dédié</p>
+    {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
+    <input type="password" name="password" placeholder="Mot de passe" autofocus required>
+    <button type="submit" class="btn primary full">Se connecter</button>
+  </form>
+</body>
+</html>

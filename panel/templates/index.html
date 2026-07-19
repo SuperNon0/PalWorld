@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palworld Panel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">🐑</span>
+      <div>
+        <h1>Palworld Panel</h1>
+        <span id="server-name" class="muted">—</span>
+      </div>
+    </div>
+    <div class="status-zone">
+      <span id="status-pill" class="pill offline">Hors ligne</span>
+      <span id="task-pill" class="pill task hidden"></span>
+    </div>
+    <div class="actions">
+      <button class="btn success" data-action="start">▶ Démarrer</button>
+      <button class="btn warn" data-action="restart">⟳ Redémarrer</button>
+      <button class="btn danger" data-action="stop">■ Arrêter</button>
+      <button class="btn" data-action="save" title="Force la sauvegarde du monde">💾 Sauvegarder le monde</button>
+      <button class="btn" data-action="update" title="Mise à jour du serveur via SteamCMD">⬆ Mettre à jour</button>
+      <form action="/logout" method="post" class="inline">
+        <button type="submit" class="btn ghost">Déconnexion</button>
+      </form>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="dashboard">Tableau de bord</button>
+    <button class="tab" data-tab="console">Console</button>
+    <button class="tab" data-tab="config">Configuration</button>
+    <button class="tab" data-tab="backups">Sauvegardes</button>
+  </nav>
+
+  <main>
+    <section id="tab-dashboard" class="tab-page active">
+      <div class="cards">
+        <div class="card"><span class="card-label">Joueurs</span><span class="card-value" id="stat-players">–</span></div>
+        <div class="card"><span class="card-label">FPS serveur</span><span class="card-value" id="stat-fps">–</span></div>
+        <div class="card"><span class="card-label">Uptime</span><span class="card-value" id="stat-uptime">–</span></div>
+        <div class="card"><span class="card-label">Version</span><span class="card-value" id="stat-version">–</span></div>
+      </div>
+
+      <div class="panel-block">
+        <h2>Annonce en jeu</h2>
+        <div class="announce-row">
+          <input id="announce-input" placeholder="Message à diffuser aux joueurs connectés…">
+          <button class="btn primary" id="announce-btn">Envoyer</button>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>Joueurs connectés</h2>
+        <div class="table-wrap">
+          <table class="table" id="players-table">
+            <thead>
+              <tr><th>Nom</th><th>Identifiant</th><th>Niveau</th><th>Ping</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5" class="muted">Aucun joueur connecté</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-console" class="tab-page">
+      <div class="section-header">
+        <h2>Logs du serveur (temps réel)</h2>
+        <button class="btn ghost" id="console-clear">Vider l'affichage</button>
+      </div>
+      <pre id="console" aria-live="polite"></pre>
+    </section>
+
+    <section id="tab-config" class="tab-page">
+      <div class="section-header">
+        <h2>PalWorldSettings.ini</h2>
+        <input id="config-search" placeholder="Filtrer un paramètre…">
+        <button class="btn primary" id="config-save">Enregistrer</button>
+      </div>
+      <p class="hint">Les modifications ne prennent effet qu'après un redémarrage du serveur.</p>
+      <div class="table-wrap">
+        <table class="table config-table" id="config-table"><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section id="tab-backups" class="tab-page">
+      <div class="section-header">
+        <h2>Sauvegardes du monde</h2>
+        <button class="btn primary" id="backup-create">📦 Créer une sauvegarde</button>
+      </div>
+      <p class="hint">Archive complète du dossier <code>Pal/Saved</code> (monde, personnages, configuration).</p>
+      <div class="table-wrap">
+        <table class="table" id="backups-table">
+          <thead><tr><th>Fichier</th><th>Taille</th><th>Date</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

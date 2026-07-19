@@ -1,0 +1,260 @@
+/* =========================================================================
+   Thème du panel — toutes les couleurs sont centralisées ici.
+   Pour appliquer un design personnalisé, modifiez uniquement ces variables.
+   ========================================================================= */
+:root {
+  --bg: #0b0e17;
+  --bg-panel: #121728;
+  --bg-card: #1a2138;
+  --bg-input: #0e1322;
+  --border: #263050;
+  --text: #e6ebf5;
+  --muted: #8b95b0;
+  --accent: #4f8cff;
+  --accent-hover: #6ea0ff;
+  --green: #2fd27d;
+  --orange: #ffb454;
+  --red: #ff5d6c;
+  --console-bg: #05070d;
+  --console-text: #9fe8b8;
+  --radius: 12px;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+}
+
+h1 { font-size: 1.1rem; }
+h2 { font-size: 1rem; margin-bottom: 12px; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+.hidden { display: none !important; }
+.inline { display: inline; }
+code { font-family: var(--font-mono); background: var(--bg-card); padding: 1px 5px; border-radius: 4px; }
+
+/* ------------------------------------------------------------- barre haute */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 14px 22px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon { font-size: 1.8rem; }
+
+.status-zone { display: flex; gap: 8px; }
+
+.pill {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.pill.online   { color: var(--green);  border-color: var(--green);  background: rgba(47, 210, 125, 0.1); }
+.pill.starting { color: var(--orange); border-color: var(--orange); background: rgba(255, 180, 84, 0.1); }
+.pill.offline  { color: var(--red);    border-color: var(--red);    background: rgba(255, 93, 108, 0.1); }
+.pill.task     { color: var(--accent); border-color: var(--accent); background: rgba(79, 140, 255, 0.1); }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+/* ---------------------------------------------------------------- boutons */
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s;
+}
+.btn:hover { filter: brightness(1.25); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.success { border-color: var(--green); color: var(--green); }
+.btn.warn    { border-color: var(--orange); color: var(--orange); }
+.btn.danger  { border-color: var(--red); color: var(--red); }
+.btn.ghost   { background: transparent; }
+.btn.full    { width: 100%; }
+.btn.small   { padding: 4px 10px; font-size: 0.78rem; }
+
+/* ----------------------------------------------------------------- onglets */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 22px 0;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+main { padding: 22px; max-width: 1200px; margin: 0 auto; }
+.tab-page { display: none; }
+.tab-page.active { display: block; }
+
+/* ------------------------------------------------------------------ cartes */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.card-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.card-value { font-size: 1.5rem; font-weight: 700; }
+
+.panel-block {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+/* ---------------------------------------------------------------- formulaires */
+input, select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+.announce-row { display: flex; gap: 10px; }
+.announce-row input { flex: 1; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.section-header h2 { margin: 0; flex: 1; }
+.hint { color: var(--muted); font-size: 0.82rem; margin-bottom: 14px; }
+
+/* ---------------------------------------------------------------- tableaux */
+.table-wrap { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.table tbody tr:hover { background: rgba(79, 140, 255, 0.05); }
+
+.config-table td:first-child {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  width: 45%;
+}
+.config-table input, .config-table select { width: 100%; max-width: 340px; }
+.config-table input.changed, .config-table select.changed { border-color: var(--orange); }
+
+/* ----------------------------------------------------------------- console */
+#console {
+  background: var(--console-bg);
+  color: var(--console-text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  height: 65vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ------------------------------------------------------------------- toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+.toast.error { border-color: var(--red); }
+
+/* ------------------------------------------------------------------- login */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.login-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+.login-logo { font-size: 3rem; }
+.login-error { color: var(--red); font-size: 0.85rem; }
+
+@media (max-width: 720px) {
+  .actions { margin-left: 0; }
+  .topbar { padding: 12px; }
+  main { padding: 14px; }
+}

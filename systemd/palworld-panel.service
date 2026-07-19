@@ -1,0 +1,16 @@
+[Unit]
+Description=Panel web d'administration Palworld
+After=network.target
+
+[Service]
+Type=simple
+User=palworld
+Group=palworld
+WorkingDirectory=/opt/palworld/panel
+Environment=PANEL_CONFIG=/etc/palworld-panel/config.json
+ExecStart=/usr/bin/python3 /opt/palworld/panel/app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

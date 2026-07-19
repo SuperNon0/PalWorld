@@ -1,0 +1,19 @@
+[Unit]
+Description=Serveur dedie Palworld
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=palworld
+Group=palworld
+WorkingDirectory=/opt/palworld/server
+ExecStart=/opt/palworld/server/PalServer.sh -port=@GAME_PORT@ -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS
+Restart=on-failure
+RestartSec=15
+KillSignal=SIGINT
+TimeoutStopSec=90
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target
