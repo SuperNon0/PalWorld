@@ -70,9 +70,12 @@ VMID=210 CORES=6 RAM=32768 DISK=60 STORAGE=local-lvm BRIDGE=vmbr0 \
   bash -c "$(wget -qLO - .../proxmox/palworld-vm.sh)"
 ```
 
-Le script affiche à la fin l'IP à retrouver, les mots de passe du panel et de
-l'admin. L'installation de Palworld se poursuit automatiquement au premier
-démarrage de la VM (SteamCMD télécharge ~8 Go, compte quelques minutes).
+Le script **attend la fin de l'installation** (il récupère l'IP tout seul via
+l'agent invité, puis surveille le panel), et affiche à la fin, en clair :
+l'**adresse du panel** (`http://IP:8080`), le **mot de passe du panel** et
+l'**identifiant + mot de passe admin** du jeu. Tu n'as donc rien à chercher.
+L'installation télécharge ~8 Go via SteamCMD (~10 à 20 min) ; tu peux quitter
+avec Ctrl+C, elle se poursuit dans la VM.
 
 > Prérequis : un stockage Proxmox pour les disques (`local-lvm` par défaut) et
 > un stockage acceptant les *snippets* (`local` par défaut ; le script tente de

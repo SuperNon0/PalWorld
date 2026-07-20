@@ -29,6 +29,8 @@ STORAGE="${STORAGE:-local-lvm}"        # stockage des disques VM
 SNIPPET_STORAGE="${SNIPPET_STORAGE:-local}"   # stockage acceptant les snippets
 BRIDGE="${BRIDGE:-vmbr0}"
 MAX_PLAYERS="${MAX_PLAYERS:-32}"
+GAME_PORT="${GAME_PORT:-8211}"         # port UDP du serveur de jeu
+PANEL_PORT="${PANEL_PORT:-8080}"       # port HTTP du panel (le « site »)
 
 # Dépôt à installer. Tant que la branche n'est pas fusionnée dans main,
 # on clone la branche de travail pour que l'installation fonctionne.
@@ -51,6 +53,25 @@ header() {
     echo "  |  __/ (_| | |\\ V  V / (_) | | | | | (_| |"
     echo "  |_|   \\__,_|_| \\_/\\_/ \\___/|_| |_|_|\\__,_|"
     echo -e "        VM Proxmox + serveur + panel${CL}\n"
+}
+
+# Récupère l'IPv4 LAN de la VM via l'agent invité (vide si pas encore prêt).
+get_vm_ip() {
+    qm guest cmd "$VMID" network-get-interfaces 2>/dev/null | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+for iface in data:
+    if iface.get("name") == "lo":
+        continue
+    for ip in iface.get("ip-addresses", []):
+        addr = ip.get("ip-address", "")
+        if ip.get("ip-address-type") == "ipv4" and not addr.startswith("127."):
+            print(addr); sys.exit(0)
+sys.exit(1)
+'
 }
 
 # ------------------------------------------------------------------- contrôles
@@ -135,7 +156,7 @@ runcmd:
   - export DEBIAN_FRONTEND=noninteractive
   - systemctl enable --now qemu-guest-agent || true
   - git clone --branch $PW_BRANCH $PW_REPO /opt/palworld-src
-  - bash /opt/palworld-src/install.sh --panel-password '$PANEL_PASSWORD' --admin-password '$ADMIN_PASSWORD' --max-players $MAX_PLAYERS
+  - bash /opt/palworld-src/install.sh --panel-password '$PANEL_PASSWORD' --admin-password '$ADMIN_PASSWORD' --max-players $MAX_PLAYERS --game-port $GAME_PORT --panel-port $PANEL_PORT
 EOF
 chmod 600 "$SNIPPET_FILE"
 msg_ok "cloud-init prêt."
@@ -164,38 +185,71 @@ msg_ok "VM créée et configurée."
 
 msg_info "Démarrage de la VM…"
 qm start "$VMID"
-msg_ok "VM démarrée — l'installation de Palworld se lance automatiquement (5 à 15 min)."
+msg_ok "VM démarrée."
 
-# -------------------------------------------------------------------- résumé
+# Identifiants affichés tout de suite (au cas où tu interromps l'attente)
 cat <<EOF
 
+  ${YW}Identifiants (note-les) :${CL}
+    Panel (le site) — mot de passe : ${BL}$PANEL_PASSWORD${CL}
+    Admin du jeu    — identifiant : ${BL}admin${CL} · mot de passe : ${BL}$ADMIN_PASSWORD${CL}
+EOF
+
+# ----------------------------------------- attente de la fin de l'installation
+msg_info "Installation en cours dans la VM (SteamCMD ~8 Go, ~10 à 20 min)…"
+msg_info "Tu peux quitter avec Ctrl+C sans risque : l'installation continue dans la VM."
+IP=""
+PANEL_READY=0
+DEADLINE=$((SECONDS + 1800))   # 30 min max d'attente
+while [[ $SECONDS -lt $DEADLINE ]]; do
+    if [[ -z $IP ]]; then
+        IP=$(get_vm_ip || true)
+        [[ -n $IP ]] && msg_ok "IP de la VM détectée : $IP"
+    fi
+    if [[ -n $IP ]] && curl -sf -o /dev/null --max-time 3 "http://$IP:$PANEL_PORT/login"; then
+        PANEL_READY=1
+        break
+    fi
+    printf "."
+    sleep 15
+done
+echo
+
+# -------------------------------------------------------------------- résumé
+if [[ $PANEL_READY -eq 1 ]]; then
+    cat <<EOF
+
 ${GN}============================================================${CL}
-  VM Palworld déployée sur Proxmox !
+  ${GN}Ton serveur Palworld est prêt !${CL}
 ------------------------------------------------------------
-  VM ID / nom     : $VMID / $HOSTNAME
-  Ressources      : $CORES cœurs · $RAM Mo RAM · $DISK Go
+  🌐 Panel (le site) : ${BL}http://$IP:$PANEL_PORT${CL}
+        mot de passe : ${BL}$PANEL_PASSWORD${CL}
 
-  Accès SSH VM    : utilisateur ${BL}ubuntu${CL} / mot de passe ${BL}$VM_PASSWORD${CL}
-  Mot de passe panel : ${BL}$PANEL_PASSWORD${CL}
-  Mot de passe admin : ${BL}$ADMIN_PASSWORD${CL}
-  ${YW}Note ces mots de passe : ils ne seront plus réaffichés.${CL}
+  🎮 Admin du jeu    : identifiant ${BL}admin${CL} · mot de passe ${BL}$ADMIN_PASSWORD${CL}
+  🎮 Adresse serveur (LAN) : ${BL}$IP:$GAME_PORT${CL}
 
-  L'installation tourne au premier démarrage (SteamCMD télécharge
-  ~8 Go). Patiente quelques minutes.
-
-  Trouver l'IP de la VM — deux méthodes :
-    1) Agent invité (dispo après ~2 min, une fois installé par cloud-init) :
-         qm guest cmd $VMID network-get-interfaces
-    2) Console série (tout de suite) :
-         qm terminal $VMID        (Entrée, login ubuntu, puis : ip a)
-         (quitter la console série : Ctrl+O)
-  Puis : panel sur  http://IP_DE_LA_VM:8080
-
-  Suivre l'installation (console série, puis) :
-      tail -f /var/log/cloud-init-output.log
-  → « Installation terminée ! » = panel prêt.
+  Accès des joueurs sans ouvrir de port : onglet « Accès / Tunnel »
+  du panel, ou   sudo /opt/palworld-src/scripts/tunnel-playit.sh
 ------------------------------------------------------------
-  Ensuite, pour l'accès des joueurs sans ouvrir de port :
-  dans la VM, lance  sudo /opt/palworld-src/scripts/tunnel-playit.sh
+  VM $VMID · $CORES cœurs · $RAM Mo · $DISK Go
+  Accès système (secours only) : ubuntu / ${BL}$VM_PASSWORD${CL} (console Proxmox)
 ${GN}============================================================${CL}
 EOF
+else
+    cat <<EOF
+
+${YW}============================================================${CL}
+  Installation encore en cours après 30 min (gros téléchargement).
+  Elle se termine toute seule dans la VM.
+------------------------------------------------------------
+  ${IP:+Panel bientôt disponible : ${BL}http://$IP:$PANEL_PORT${CL}}
+  ${IP:-IP pas encore détectée — vérifie l'onglet Résumé de la VM $VMID dans Proxmox.}
+
+  Suivre la fin de l'installation :
+      qm terminal $VMID   (Entrée, login ubuntu, puis :)
+      sudo tail -f /var/log/cloud-init-output.log
+
+  Identifiants — panel : ${BL}$PANEL_PASSWORD${CL} · admin : ${BL}admin / $ADMIN_PASSWORD${CL}
+${YW}============================================================${CL}
+EOF
+fi
