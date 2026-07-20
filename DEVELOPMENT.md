@@ -31,6 +31,8 @@ chaque composant.
 | `scripts/update.sh` | Arrêt → mise à jour SteamCMD → redémarrage |
 | `scripts/backup.sh` | Archive `Pal/Saved` + rotation |
 | `scripts/restore.sh` | Restauration d'une archive (avec sauvegarde de sécurité préalable) |
+| `scripts/tunnel-playit.sh` | Installe l'agent playit.gg (accès joueurs sans ouvrir de port) |
+| `proxmox/palworld-vm.sh` | **Sur l'hôte Proxmox** : crée la VM Ubuntu et l'installe via cloud-init |
 | `systemd/*.service` | Unités systemd (le port jeu est injecté par `install.sh` via `@GAME_PORT@`) |
 
 Choix techniques :

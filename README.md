@@ -45,6 +45,35 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 
 ## Installation
 
+Deux façons de faire : **(A)** tout automatique depuis Proxmox (la VM est créée
+pour toi), ou **(B)** manuelle sur une VM Ubuntu déjà existante.
+
+### A. Déploiement automatique depuis Proxmox (recommandé)
+
+À coller **dans le shell de l'hôte Proxmox** (pas dans une VM). Le script crée
+une VM Ubuntu 24.04, la configure et installe le serveur + le panel tout seul :
+
+```bash
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/SuperNon0/PalWorld/claude/palworld-install-script-panel-b41cfo/proxmox/palworld-vm.sh)"
+```
+
+Réglages optionnels via variables d'environnement :
+
+```bash
+VMID=210 CORES=6 RAM=32768 DISK=60 STORAGE=local-lvm BRIDGE=vmbr0 \
+  bash -c "$(wget -qLO - .../proxmox/palworld-vm.sh)"
+```
+
+Le script affiche à la fin l'IP à retrouver, les mots de passe du panel et de
+l'admin. L'installation de Palworld se poursuit automatiquement au premier
+démarrage de la VM (SteamCMD télécharge ~8 Go, compte quelques minutes).
+
+> Prérequis : un stockage Proxmox pour les disques (`local-lvm` par défaut) et
+> un stockage acceptant les *snippets* (`local` par défaut ; le script tente de
+> l'activer). Défauts : 4 cœurs, 16 Go RAM, 40 Go disque, réseau DHCP.
+
+### B. Installation manuelle sur une VM Ubuntu existante
+
 Sur la VM Ubuntu fraîchement créée :
 
 ```bash
@@ -83,6 +112,33 @@ sans toucher au monde sauvegardé, et conserve le mot de passe admin existant
 | 8080  | TCP | Panel web | **LAN uniquement** (ou derrière un reverse proxy HTTPS) |
 | 8212  | TCP | API REST Palworld | localhost (utilisée par le panel) |
 | 25575 | TCP | RCON (optionnel) | localhost |
+
+## Accès des joueurs sans ouvrir de port (playit.gg)
+
+Palworld utilise de l'UDP brut et un serveur dédié n'a pas de relais Steam :
+il faut donc soit rediriger le port 8211 sur ta box, soit passer par un tunnel.
+Le script `tunnel-playit.sh` installe l'agent [playit.gg](https://playit.gg)
+(gratuit) : il se connecte **en sortie** au réseau playit.gg, qui relaie les
+joueurs vers ton serveur. **Aucun port à ouvrir chez toi.**
+
+```bash
+# dans la VM
+sudo /opt/palworld-src/scripts/tunnel-playit.sh   # (déploiement Proxmox)
+# ou, en installation manuelle :
+sudo ./scripts/tunnel-playit.sh
+```
+
+Ensuite (dans le navigateur, une seule fois) :
+1. crée un compte gratuit sur <https://playit.gg> ;
+2. ouvre le lien d'association affiché par le script (ou visible via
+   `journalctl -u playit -f`) pour lier la VM à ton compte ;
+3. crée un tunnel **UDP** vers le port **8211** (adresse locale `127.0.0.1`) ;
+4. playit.gg te donne une adresse `xxxxx.playit.gg:PORT` : tes joueurs la
+   collent dans Palworld (*Rejoindre par IP*).
+
+> Alternatives gratuites également possibles : **Tailscale** ou **ZeroTier**
+> (VPN privé, chaque joueur installe un client) — plus sécurisé, et donne accès
+> au panel à distance.
 
 ## Exploitation courante
 
