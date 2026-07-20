@@ -32,6 +32,7 @@ GAME_PORT=8211
 PANEL_PORT=8080
 MAX_PLAYERS=32
 PANEL_PASSWORD=""
+PANEL_PASSWORD_FORCED=0
 ADMIN_PASSWORD=""
 ADMIN_PASSWORD_FORCED=0
 
@@ -46,7 +47,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --game-port)      GAME_PORT=$2; shift 2 ;;
         --panel-port)     PANEL_PORT=$2; shift 2 ;;
-        --panel-password) PANEL_PASSWORD=$2; shift 2 ;;
+        --panel-password) PANEL_PASSWORD=$2; PANEL_PASSWORD_FORCED=1; shift 2 ;;
         --admin-password) ADMIN_PASSWORD=$2; ADMIN_PASSWORD_FORCED=1; shift 2 ;;
         --max-players)    MAX_PLAYERS=$2; shift 2 ;;
         -h|--help)        usage; exit 0 ;;
@@ -90,6 +91,13 @@ chmod +x "$SCRIPTS_DIR"/*.sh
 chown -R palworld:palworld "$PANEL_DIR" "$SCRIPTS_DIR"
 
 # ------------------------------------------------ 4. serveur Palworld (SteamCMD)
+# Sur une réinstallation, on ne met jamais à jour les fichiers pendant que
+# le serveur tourne (risque de corruption).
+if systemctl is-active --quiet palworld.service 2>/dev/null; then
+    log "Serveur en cours d'exécution : arrêt le temps de la mise à jour…"
+    systemctl stop palworld.service
+fi
+
 log "Téléchargement / mise à jour du serveur Palworld (peut prendre plusieurs minutes)…"
 sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
     +login anonymous +app_update "$APP_ID" validate +quit
@@ -140,12 +148,22 @@ chown palworld:palworld "$INI"
 
 # ------------------------------------------------------ 6. configuration du panel
 install -d "$ETC_DIR"
-log "Écriture de la configuration du panel…"
-PANEL_HASH=$(python3 -c "import sys; from werkzeug.security import generate_password_hash; print(generate_password_hash(sys.argv[1]))" "$PANEL_PASSWORD")
-SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+# Sur une réinstallation, le mot de passe du panel et la clé de session sont
+# conservés, sauf si --panel-password a été fourni explicitement.
+if [[ -f $ETC_DIR/config.json && $PANEL_PASSWORD_FORCED -eq 0 ]]; then
+    log "Configuration du panel existante : mot de passe conservé."
+    PANEL_HASH=$(python3 -c "import json; print(json.load(open('$ETC_DIR/config.json'))['panel_password_hash'])")
+    SECRET_KEY=$(python3 -c "import json; print(json.load(open('$ETC_DIR/config.json'))['secret_key'])")
+    PANEL_PASSWORD="(inchangé)"
+else
+    PANEL_HASH=$(python3 -c "import sys; from werkzeug.security import generate_password_hash; print(generate_password_hash(sys.argv[1]))" "$PANEL_PASSWORD")
+    SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+fi
 
+log "Écriture de la configuration du panel…"
 PANEL_HASH="$PANEL_HASH" SECRET_KEY="$SECRET_KEY" PANEL_PORT="$PANEL_PORT" \
 SERVER_DIR="$SERVER_DIR" BACKUP_DIR="$BACKUP_DIR" SCRIPTS_DIR="$SCRIPTS_DIR" \
+PALWORLD_HOME="$PALWORLD_HOME" \
 python3 - <<'PYEOF'
 import json, os
 config = {
@@ -157,6 +175,7 @@ config = {
     "server_dir": os.environ["SERVER_DIR"],
     "backup_dir": os.environ["BACKUP_DIR"],
     "scripts_dir": os.environ["SCRIPTS_DIR"],
+    "state_file": os.environ["PALWORLD_HOME"] + "/panel-state.json",
     "api_url": "http://127.0.0.1:8212",
 }
 with open("/etc/palworld-panel/config.json", "w") as handle:
@@ -181,6 +200,9 @@ usermod -aG systemd-journal palworld
 
 systemctl daemon-reload
 systemctl enable --now palworld.service palworld-panel.service
+# Redémarrage du panel : recharge le code et applique l'appartenance au
+# groupe systemd-journal (nécessaire pour la console)
+systemctl restart palworld-panel.service
 
 # ------------------------------------------------------------------- 8. pare-feu
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then

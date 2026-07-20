@@ -30,6 +30,7 @@ chaque composant.
 | `panel/templates/`, `panel/static/` | Interface web (vanilla JS, thème via variables CSS) |
 | `scripts/update.sh` | Arrêt → mise à jour SteamCMD → redémarrage |
 | `scripts/backup.sh` | Archive `Pal/Saved` + rotation |
+| `scripts/restore.sh` | Restauration d'une archive (avec sauvegarde de sécurité préalable) |
 | `systemd/*.service` | Unités systemd (le port jeu est injecté par `install.sh` via `@GAME_PORT@`) |
 
 Choix techniques :
@@ -38,6 +39,10 @@ Choix techniques :
 - Le panel parle au serveur via **l'API REST officielle** de Palworld
   (`RESTAPIEnabled=True`), plus fiable que le RCON du jeu.
 - La console est un flux **SSE** alimenté par `journalctl -f`.
+- L'automatisation (sauvegardes périodiques, redémarrage quotidien avec
+  préavis en jeu) est gérée par un **thread planificateur** dans `app.py` ;
+  son état vit dans `/opt/palworld/panel-state.json` (inscriptible par
+  l'utilisateur `palworld`, contrairement à `/etc/palworld-panel/`).
 - Sécurité : utilisateur système dédié, sudoers limité à 3 commandes
   `systemctl`, mot de passe du panel hashé (werkzeug).
 
@@ -64,6 +69,7 @@ json.dump({
     "server_dir": "/tmp/palworld-dev/server",
     "backup_dir": "/tmp/palworld-dev/backups",
     "scripts_dir": "/tmp/palworld-dev/scripts",
+    "state_file": "/tmp/palworld-dev/panel-state.json",
     "api_url": "http://127.0.0.1:8212",
 }, open("/tmp/palworld-dev/config.json", "w"), indent=2)
 EOF
@@ -113,8 +119,9 @@ python3 -m py_compile panel/*.py                # syntaxe python
 
 ## Pistes d'évolution
 
-- [ ] Planification de redémarrages automatiques depuis le panel
-- [ ] Restauration d'une sauvegarde depuis le panel
+- [x] Planification de redémarrages automatiques depuis le panel
+- [x] Restauration d'une sauvegarde depuis le panel
+- [x] Sauvegardes automatiques planifiées
 - [ ] Graphiques (FPS, joueurs, RAM) à partir de `/v1/api/metrics`
 - [ ] Whitelist / liste des bannis
 - [ ] Support multi-serveurs (plusieurs instances Palworld sur la même VM)

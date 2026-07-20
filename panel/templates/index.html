@@ -45,6 +45,8 @@
         <div class="card"><span class="card-label">FPS serveur</span><span class="card-value" id="stat-fps">–</span></div>
         <div class="card"><span class="card-label">Uptime</span><span class="card-value" id="stat-uptime">–</span></div>
         <div class="card"><span class="card-label">Version</span><span class="card-value" id="stat-version">–</span></div>
+        <div class="card"><span class="card-label">RAM machine</span><span class="card-value" id="stat-ram">–</span></div>
+        <div class="card"><span class="card-label">Disque libre</span><span class="card-value" id="stat-disk">–</span></div>
       </div>
 
       <div class="panel-block">
@@ -53,6 +55,22 @@
           <input id="announce-input" placeholder="Message à diffuser aux joueurs connectés…">
           <button class="btn primary" id="announce-btn">Envoyer</button>
         </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>Automatisation</h2>
+        <div class="auto-row">
+          <label class="check"><input type="checkbox" id="auto-restart-enabled"> Redémarrage quotidien à</label>
+          <input type="time" id="auto-restart-time" value="05:00">
+        </div>
+        <div class="auto-row">
+          <label class="check"><input type="checkbox" id="auto-backup-enabled"> Sauvegarde automatique toutes les</label>
+          <input type="number" id="auto-backup-interval" min="1" max="168" step="1" value="24"> h,
+          <span>en conservant</span>
+          <input type="number" id="auto-backup-keep" min="1" max="200" value="14"> archives
+        </div>
+        <button class="btn primary" id="scheduler-save">Enregistrer l'automatisation</button>
+        <p class="hint auto-hint">Les joueurs sont prévenus en jeu 5 min et 1 min avant un redémarrage automatique. Le monde est sauvegardé avant chaque redémarrage.</p>
       </div>
 
       <div class="panel-block">

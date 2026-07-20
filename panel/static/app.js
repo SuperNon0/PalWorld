@@ -35,10 +35,9 @@ function toast(message, isError = false) {
   toastTimer = setTimeout(() => el.classList.add("hidden"), 4000);
 }
 
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+  return String(text).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
 function formatUptime(seconds) {
@@ -70,8 +69,13 @@ function renderStatus(status) {
   }
 
   const taskPill = $("#task-pill");
+  const TASK_LABELS = {
+    update: "Mise à jour en cours…",
+    backup: "Sauvegarde en cours…",
+    restore: "Restauration en cours…",
+  };
   if (status.task) {
-    taskPill.textContent = status.task === "update" ? "Mise à jour en cours…" : "Sauvegarde en cours…";
+    taskPill.textContent = TASK_LABELS[status.task] || "Tâche en cours…";
     taskPill.classList.remove("hidden");
   } else {
     taskPill.classList.add("hidden");
@@ -85,6 +89,12 @@ function renderStatus(status) {
   $("#stat-fps").textContent = metrics.serverfps != null ? metrics.serverfps : "–";
   $("#stat-uptime").textContent = status.api_ok ? formatUptime(metrics.uptime) : "–";
   $("#stat-version").textContent = info.version || "–";
+
+  const sys = status.system || {};
+  $("#stat-ram").textContent = sys.mem_total
+    ? `${formatSize(sys.mem_used)} / ${formatSize(sys.mem_total)}`
+    : "–";
+  $("#stat-disk").textContent = sys.disk_free != null ? formatSize(sys.disk_free) : "–";
 
   renderPlayers(status.players || []);
 }
@@ -238,10 +248,72 @@ async function loadBackups() {
           <td><code>${escapeHtml(b.name)}</code></td>
           <td>${formatSize(b.size)}</td>
           <td>${new Date(b.mtime * 1000).toLocaleString("fr-FR")}</td>
-          <td><a class="btn small" href="/api/backups/${encodeURIComponent(b.name)}/download">Télécharger</a></td>
+          <td class="backup-actions">
+            <a class="btn small" href="/api/backups/${encodeURIComponent(b.name)}/download">Télécharger</a>
+            <button class="btn small warn" data-backup-restore="${escapeHtml(b.name)}">Restaurer</button>
+            <button class="btn small danger" data-backup-delete="${escapeHtml(b.name)}">Supprimer</button>
+          </td>
         </tr>`
       )
       .join("");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function restoreBackup(name) {
+  const warning =
+    `Restaurer la sauvegarde ${name} ?\n\n` +
+    "• Le serveur sera arrêté puis redémarré.\n" +
+    "• Le monde ACTUEL sera d'abord archivé (sauvegarde de sécurité).\n" +
+    "• Il sera ensuite remplacé par le contenu de cette sauvegarde.";
+  if (!confirm(warning)) return;
+  try {
+    await api(`/api/backups/${encodeURIComponent(name)}/restore`, { method: "POST" });
+    toast("Restauration lancée (suivez la progression dans la console).");
+    setTimeout(refreshStatus, 1500);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function deleteBackup(name) {
+  if (!confirm(`Supprimer définitivement la sauvegarde ${name} ?`)) return;
+  try {
+    await api(`/api/backups/${encodeURIComponent(name)}`, { method: "DELETE" });
+    toast("Sauvegarde supprimée.");
+    loadBackups();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// ------------------------------------------------------------ automatisation
+async function loadScheduler() {
+  try {
+    const s = await api("/api/scheduler");
+    $("#auto-restart-enabled").checked = !!s.auto_restart_enabled;
+    $("#auto-restart-time").value = s.auto_restart_time || "05:00";
+    $("#auto-backup-enabled").checked = !!s.auto_backup_enabled;
+    $("#auto-backup-interval").value = s.auto_backup_interval_hours ?? 24;
+    $("#auto-backup-keep").value = s.auto_backup_keep ?? 14;
+  } catch (err) {
+    /* panel injoignable : on laisse les valeurs par défaut */
+  }
+}
+
+async function saveScheduler() {
+  try {
+    await api("/api/scheduler", {
+      body: {
+        auto_restart_enabled: $("#auto-restart-enabled").checked,
+        auto_restart_time: $("#auto-restart-time").value,
+        auto_backup_enabled: $("#auto-backup-enabled").checked,
+        auto_backup_interval_hours: parseFloat($("#auto-backup-interval").value),
+        auto_backup_keep: parseInt($("#auto-backup-keep").value, 10),
+      },
+    });
+    toast("Automatisation enregistrée.");
   } catch (err) {
     toast(err.message, true);
   }
@@ -305,6 +377,16 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadBackups, 4000);
   });
 
+  $("#backups-table").addEventListener("click", (event) => {
+    const restoreBtn = event.target.closest("[data-backup-restore]");
+    if (restoreBtn) return restoreBackup(restoreBtn.dataset.backupRestore);
+    const deleteBtn = event.target.closest("[data-backup-delete]");
+    if (deleteBtn) return deleteBackup(deleteBtn.dataset.backupDelete);
+  });
+
+  $("#scheduler-save").addEventListener("click", saveScheduler);
+
+  loadScheduler();
   refreshStatus();
   setInterval(refreshStatus, 5000);
 });

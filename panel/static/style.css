@@ -158,6 +158,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .announce-row { display: flex; gap: 10px; }
 .announce-row input { flex: 1; }
 
+.auto-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+.auto-row input[type="number"] { width: 80px; }
+.auto-hint { margin-top: 10px; margin-bottom: 0; }
+
+.backup-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
 .section-header {
   display: flex;
   align-items: center;

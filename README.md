@@ -20,7 +20,12 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 - 👥 Joueurs connectés : niveau, ping, kick, ban
 - 📢 Annonces en jeu
 - ⬆ Mise à jour du serveur en un clic (SteamCMD)
-- 📦 Sauvegardes du monde : création, rotation automatique, téléchargement
+- 📦 Sauvegardes du monde : création, **restauration**, suppression,
+  téléchargement, rotation automatique
+- ⏱ **Sauvegardes automatiques** planifiées (intervalle et rétention réglables)
+- 🔄 **Redémarrage quotidien programmable** avec préavis aux joueurs en jeu
+  (5 min et 1 min avant)
+- 📈 RAM et disque de la machine sur le tableau de bord
 
 ## Prérequis (VM Proxmox recommandée)
 
@@ -92,21 +97,27 @@ sudo -u palworld /opt/palworld/scripts/update.sh
 sudo -u palworld /opt/palworld/scripts/backup.sh
 ```
 
-### Sauvegardes automatiques (optionnel)
+### Sauvegardes automatiques et redémarrage quotidien
 
-```bash
-# tous les jours à 5 h, en gardant les 14 dernières archives
-echo '0 5 * * * palworld KEEP=14 /opt/palworld/scripts/backup.sh' | sudo tee /etc/cron.d/palworld-backup
-```
+Tout se règle depuis le bloc **Automatisation** du tableau de bord du panel :
+- sauvegarde automatique du monde à intervalle régulier (1 à 168 h) avec
+  rétention configurable ;
+- redémarrage quotidien du serveur à heure fixe (conseillé : Palworld a des
+  fuites mémoire connues), avec annonces en jeu 5 min et 1 min avant.
+
+La restauration d'une sauvegarde se fait depuis l'onglet **Sauvegardes** :
+le serveur est arrêté, le monde actuel est archivé en sécurité, puis remplacé
+par la sauvegarde choisie, et le serveur redémarre.
 
 ## Arborescence installée
 
 ```
 /opt/palworld/
-├── server/      # serveur Palworld (SteamCMD)
-├── panel/       # panel web Flask
-├── scripts/     # update.sh, backup.sh
-└── backups/     # archives du monde (tar.gz)
+├── server/            # serveur Palworld (SteamCMD)
+├── panel/             # panel web Flask
+├── scripts/           # update.sh, backup.sh, restore.sh
+├── backups/           # archives du monde (tar.gz)
+└── panel-state.json   # état de l'automatisation (créé par le panel)
 /etc/palworld-panel/config.json   # config du panel (hash du mot de passe…)
 /etc/systemd/system/palworld.service
 /etc/systemd/system/palworld-panel.service
