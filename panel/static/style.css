@@ -166,6 +166,33 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 .backup-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
+.grow { flex: 1; min-width: 160px; }
+.unban-row { margin-top: 14px; margin-bottom: 0; }
+.security-block { margin-top: 18px; }
+
+/* --------------------------------------------------------------- graphiques */
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.chart {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin: 0;
+}
+.chart figcaption {
+  color: var(--muted);
+  font-size: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.chart-now { color: var(--text); font-weight: 700; }
+.chart canvas { width: 100%; height: 120px; display: block; cursor: crosshair; }
+
 .section-header {
   display: flex;
   align-items: center;

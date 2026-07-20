@@ -181,8 +181,9 @@ config = {
 with open("/etc/palworld-panel/config.json", "w") as handle:
     json.dump(config, handle, indent=2)
 PYEOF
+# 660 : le panel (groupe palworld) peut changer son propre mot de passe
 chown root:palworld "$ETC_DIR/config.json"
-chmod 640 "$ETC_DIR/config.json"
+chmod 660 "$ETC_DIR/config.json"
 
 # ------------------------------------------------------------- 7. services systemd
 log "Installation des services systemd…"

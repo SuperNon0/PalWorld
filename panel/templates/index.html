@@ -50,6 +50,24 @@
       </div>
 
       <div class="panel-block">
+        <h2>Historique (24 h)</h2>
+        <div class="charts">
+          <figure class="chart">
+            <figcaption>Joueurs connectés <span class="chart-now" id="now-players">–</span></figcaption>
+            <canvas id="chart-players"></canvas>
+          </figure>
+          <figure class="chart">
+            <figcaption>FPS serveur <span class="chart-now" id="now-fps">–</span></figcaption>
+            <canvas id="chart-fps"></canvas>
+          </figure>
+          <figure class="chart">
+            <figcaption>RAM utilisée <span class="chart-now" id="now-mem">–</span></figcaption>
+            <canvas id="chart-mem"></canvas>
+          </figure>
+        </div>
+      </div>
+
+      <div class="panel-block">
         <h2>Annonce en jeu</h2>
         <div class="announce-row">
           <input id="announce-input" placeholder="Message à diffuser aux joueurs connectés…">
@@ -74,6 +92,17 @@
       </div>
 
       <div class="panel-block">
+        <h2>Arrêt différé</h2>
+        <div class="auto-row">
+          <span>Arrêter le serveur dans</span>
+          <input type="number" id="shutdown-minutes" min="1" max="60" value="5"> min —
+          <input type="text" id="shutdown-message" placeholder="Message affiché en jeu (optionnel)" class="grow">
+          <button class="btn danger" id="shutdown-btn">Programmer l'arrêt</button>
+        </div>
+        <p class="hint auto-hint">Le compte à rebours est diffusé aux joueurs et le monde est sauvegardé par le serveur avant l'arrêt.</p>
+      </div>
+
+      <div class="panel-block">
         <h2>Joueurs connectés</h2>
         <div class="table-wrap">
           <table class="table" id="players-table">
@@ -84,6 +113,10 @@
               <tr><td colspan="5" class="muted">Aucun joueur connecté</td></tr>
             </tbody>
           </table>
+        </div>
+        <div class="auto-row unban-row">
+          <input type="text" id="unban-input" placeholder="Identifiant d'un joueur à débannir (ex : steam_76561198…)" class="grow">
+          <button class="btn" id="unban-btn">Débannir</button>
         </div>
       </div>
     </section>
@@ -105,6 +138,16 @@
       <p class="hint">Les modifications ne prennent effet qu'après un redémarrage du serveur.</p>
       <div class="table-wrap">
         <table class="table config-table" id="config-table"><tbody></tbody></table>
+      </div>
+
+      <div class="panel-block security-block">
+        <h2>Mot de passe du panel</h2>
+        <div class="auto-row">
+          <input type="password" id="pw-current" placeholder="Mot de passe actuel" autocomplete="current-password">
+          <input type="password" id="pw-new" placeholder="Nouveau mot de passe (8 caractères min.)" autocomplete="new-password">
+          <input type="password" id="pw-confirm" placeholder="Confirmer le nouveau mot de passe" autocomplete="new-password">
+          <button class="btn primary" id="pw-save">Changer</button>
+        </div>
       </div>
     </section>
 

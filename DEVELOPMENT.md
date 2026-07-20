@@ -122,7 +122,11 @@ python3 -m py_compile panel/*.py                # syntaxe python
 - [x] Planification de redémarrages automatiques depuis le panel
 - [x] Restauration d'une sauvegarde depuis le panel
 - [x] Sauvegardes automatiques planifiées
-- [ ] Graphiques (FPS, joueurs, RAM) à partir de `/v1/api/metrics`
-- [ ] Whitelist / liste des bannis
+- [x] Graphiques (FPS, joueurs, RAM) à partir de `/v1/api/metrics`
+  (échantillonnés 1×/min par le planificateur, en mémoire — perdus au
+  redémarrage du panel)
+- [x] Changement du mot de passe du panel depuis l'interface
+- [x] Arrêt différé avec préavis en jeu
+- [ ] Whitelist / liste des bannis persistante côté panel
 - [ ] Support multi-serveurs (plusieurs instances Palworld sur la même VM)
 - [ ] HTTPS natif ou intégration reverse proxy documentée

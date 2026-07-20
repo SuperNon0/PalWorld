@@ -13,13 +13,17 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 - Sauvegarde du monde forcée avant chaque arrêt/redémarrage
 
 **Panel web** (service systemd `palworld-panel`)
-- 🔐 Connexion par mot de passe
-- ▶ Démarrer / ■ Arrêter / ⟳ Redémarrer le serveur
+- 🔐 Connexion par mot de passe (modifiable depuis le panel)
+- ▶ Démarrer / ■ Arrêter / ⟳ Redémarrer le serveur, plus **arrêt différé**
+  avec compte à rebours annoncé aux joueurs
 - 🖥 Console : logs du serveur en temps réel (journald)
+- 📊 **Graphiques 24 h** : joueurs connectés, FPS serveur, RAM (avec infobulle)
 - ⚙ Édition complète de `PalWorldSettings.ini` depuis le navigateur
-- 👥 Joueurs connectés : niveau, ping, kick, ban
+- 👥 Joueurs connectés : niveau, ping, kick/ban avec raison personnalisée,
+  déban par identifiant
 - 📢 Annonces en jeu
-- ⬆ Mise à jour du serveur en un clic (SteamCMD)
+- ⬆ Mise à jour du serveur en un clic (SteamCMD), avec sauvegarde de
+  sécurité du monde avant chaque mise à jour
 - 📦 Sauvegardes du monde : création, **restauration**, suppression,
   téléchargement, rotation automatique
 - ⏱ **Sauvegardes automatiques** planifiées (intervalle et rétention réglables)
@@ -127,7 +131,9 @@ par la sauvegarde choisie, et le serveur redémarre.
 
 - Le panel tourne sous l'utilisateur système `palworld`, sans privilèges, avec
   des droits `sudo` limités aux seules commandes `systemctl start/stop/restart palworld`.
-- Le mot de passe du panel est stocké **hashé** dans `/etc/palworld-panel/config.json`.
+- Le mot de passe du panel est stocké **hashé** dans
+  `/etc/palworld-panel/config.json` et se change depuis l'onglet
+  Configuration du panel (section « Mot de passe du panel »).
 - N'exposez pas le port du panel directement sur Internet : gardez-le en LAN
   ou placez-le derrière un reverse proxy HTTPS (Nginx Proxy Manager, Caddy…).
 

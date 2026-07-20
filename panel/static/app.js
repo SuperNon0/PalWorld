@@ -214,6 +214,8 @@ async function saveConfig() {
     let value = String(el.value);
     if (configMeta[key] && configMeta[key].quoted) {
       value = '"' + value.replace(/"/g, "") + '"';
+    } else if (value.trim() === "") {
+      return; // champ numérique/énuméré vidé : on ne touche pas à la valeur existante
     }
     settings[key] = value;
   });
@@ -319,6 +321,141 @@ async function saveScheduler() {
   }
 }
 
+// ------------------------------------------------------------- historique
+const chartState = new Map();
+
+function themeColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+async function loadHistory() {
+  try {
+    const data = await api("/api/history");
+    drawCharts(data.history);
+  } catch (err) {
+    /* silencieux : le tableau de bord reste utilisable sans historique */
+  }
+}
+
+function drawCharts(history) {
+  drawChart($("#chart-players"), history, (e) => e.players, {
+    color: themeColor("--accent"), nowEl: "#now-players", fmt: (v) => String(Math.round(v)),
+  });
+  drawChart($("#chart-fps"), history, (e) => e.fps, {
+    color: themeColor("--green"), nowEl: "#now-fps", fmt: (v) => String(Math.round(v)),
+  });
+  drawChart($("#chart-mem"), history, (e) => (e.mem != null ? e.mem / 1e9 : null), {
+    color: themeColor("--orange"), nowEl: "#now-mem", fmt: (v) => v.toFixed(1) + " Go",
+  });
+}
+
+function drawChart(canvas, history, getValue, opts) {
+  const points = history
+    .map((e) => ({ t: e.t, v: getValue(e) }))
+    .filter((p) => p.v != null && !Number.isNaN(p.v));
+  chartState.set(canvas, { points, opts });
+  renderChart(canvas, null);
+  const last = points[points.length - 1];
+  if (opts.nowEl) $(opts.nowEl).textContent = last ? opts.fmt(last.v) : "–";
+}
+
+function renderChart(canvas, hoverX) {
+  const state = chartState.get(canvas);
+  if (!state) return;
+  const { points, opts } = state;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  const muted = themeColor("--muted");
+  const border = themeColor("--border");
+  const padL = 40, padR = 8, padT = 10, padB = 16;
+  if (points.length < 2) {
+    ctx.fillStyle = muted;
+    ctx.font = "12px sans-serif";
+    ctx.fillText("Pas encore assez de données (1 point/min)…", padL, h / 2);
+    return;
+  }
+  const t0 = points[0].t;
+  const t1 = points[points.length - 1].t;
+  const vmax = Math.max(...points.map((p) => p.v)) * 1.15 || 1;
+  const x = (t) => padL + ((t - t0) / Math.max(1, t1 - t0)) * (w - padL - padR);
+  const y = (v) => padT + (1 - v / vmax) * (h - padT - padB);
+  const fmtTime = (t) =>
+    new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+  // grille discrète + graduations en encre neutre
+  ctx.strokeStyle = border;
+  ctx.fillStyle = muted;
+  ctx.font = "10px sans-serif";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 2; i++) {
+    const v = (vmax * i) / 2;
+    const yy = y(v);
+    ctx.beginPath();
+    ctx.moveTo(padL, yy);
+    ctx.lineTo(w - padR, yy);
+    ctx.stroke();
+    ctx.fillText(opts.fmt(v), 2, yy + 3);
+  }
+  ctx.fillText(fmtTime(t0), padL, h - 4);
+  const endLabel = fmtTime(t1);
+  ctx.fillText(endLabel, w - padR - ctx.measureText(endLabel).width, h - 4);
+
+  // ligne fine + aire légère
+  ctx.beginPath();
+  points.forEach((p, i) => (i ? ctx.lineTo(x(p.t), y(p.v)) : ctx.moveTo(x(p.t), y(p.v))));
+  ctx.strokeStyle = opts.color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+  ctx.lineTo(x(t1), y(0));
+  ctx.lineTo(x(t0), y(0));
+  ctx.closePath();
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = opts.color;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // survol : point le plus proche + infobulle
+  if (hoverX != null) {
+    let best = points[0];
+    for (const p of points) {
+      if (Math.abs(x(p.t) - hoverX) < Math.abs(x(best.t) - hoverX)) best = p;
+    }
+    const bx = x(best.t);
+    const by = y(best.v);
+    ctx.strokeStyle = muted;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(bx, padT);
+    ctx.lineTo(bx, h - padB);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = opts.color;
+    ctx.beginPath();
+    ctx.arc(bx, by, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    const label = `${fmtTime(best.t)} — ${opts.fmt(best.v)}`;
+    ctx.font = "11px sans-serif";
+    const tw = ctx.measureText(label).width + 12;
+    const tx = Math.min(Math.max(bx - tw / 2, padL), w - padR - tw);
+    ctx.fillStyle = themeColor("--bg-card");
+    ctx.strokeStyle = border;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(tx, padT, tw, 18, 4);
+    else ctx.rect(tx, padT, tw, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = themeColor("--text");
+    ctx.fillText(label, tx + 6, padT + 13);
+  }
+}
+
 // ---------------------------------------------------------------- onglets
 function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
@@ -359,11 +496,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const action = btn.dataset.playerAction;
     const userid = btn.dataset.userid;
     if (!userid) return toast("Identifiant joueur introuvable.", true);
-    if (!confirm(`${action === "kick" ? "Expulser" : "Bannir"} ce joueur ?`)) return;
+    const defaultMsg = action === "kick" ? "Expulsé par un administrateur" : "Banni par un administrateur";
+    const message = prompt(
+      `${action === "kick" ? "Expulser" : "Bannir"} ce joueur — raison affichée en jeu :`,
+      defaultMsg
+    );
+    if (message === null) return; // annulé
     try {
-      await api(`/api/players/${action}`, { body: { userid } });
+      await api(`/api/players/${action}`, { body: { userid, message: message.trim() } });
       toast(action === "kick" ? "Joueur expulsé." : "Joueur banni.");
       setTimeout(refreshStatus, 1000);
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+
+  $("#unban-btn").addEventListener("click", async () => {
+    const userid = $("#unban-input").value.trim();
+    if (!userid) return;
+    try {
+      await api("/api/players/unban", { body: { userid } });
+      toast("Joueur débanni.");
+      $("#unban-input").value = "";
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+
+  $("#shutdown-btn").addEventListener("click", async () => {
+    const minutes = parseInt($("#shutdown-minutes").value, 10);
+    if (!minutes || minutes < 1 || minutes > 60) return toast("Délai invalide (1 à 60 min).", true);
+    if (!confirm(`Programmer l'arrêt du serveur dans ${minutes} min ?`)) return;
+    try {
+      await api("/api/action", {
+        body: { action: "shutdown", waittime: minutes * 60, message: $("#shutdown-message").value.trim() },
+      });
+      toast(`Arrêt programmé dans ${minutes} min.`);
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+
+  $("#pw-save").addEventListener("click", async () => {
+    const current = $("#pw-current").value;
+    const next = $("#pw-new").value;
+    if (next !== $("#pw-confirm").value) return toast("La confirmation ne correspond pas.", true);
+    try {
+      await api("/api/panel-password", { body: { current, new: next } });
+      toast("Mot de passe du panel modifié.");
+      ["#pw-current", "#pw-new", "#pw-confirm"].forEach((sel) => ($(sel).value = ""));
     } catch (err) {
       toast(err.message, true);
     }
@@ -386,7 +567,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("#scheduler-save").addEventListener("click", saveScheduler);
 
+  document.querySelectorAll(".chart canvas").forEach((canvas) => {
+    canvas.addEventListener("mousemove", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      renderChart(canvas, event.clientX - rect.left);
+    });
+    canvas.addEventListener("mouseleave", () => renderChart(canvas, null));
+  });
+  window.addEventListener("resize", () => {
+    document.querySelectorAll(".chart canvas").forEach((canvas) => renderChart(canvas, null));
+  });
+
   loadScheduler();
+  loadHistory();
+  setInterval(loadHistory, 60000);
   refreshStatus();
   setInterval(refreshStatus, 5000);
 });

@@ -13,6 +13,7 @@ L'état du planificateur est conservé dans le fichier ``state_file``
 (défaut : /opt/palworld/panel-state.json), inscriptible par l'utilisateur
 ``palworld``.
 """
+import collections
 import json
 import logging
 import os
@@ -27,7 +28,7 @@ from pathlib import Path
 
 from flask import (Flask, Response, jsonify, redirect, render_template,
                    request, send_from_directory, session, url_for)
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import palworld_config
 from palworld_api import APIError, PalworldAPI
@@ -61,18 +62,21 @@ STATE_DEFAULTS = {
 
 app = Flask(__name__)
 app.secret_key = CONFIG["secret_key"]
+app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 _task_lock = threading.Lock()
 _current_task = None
 _state_lock = threading.Lock()
+_history_lock = threading.Lock()
+HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minute
 
 
 # --------------------------------------------------------------- utilitaires
 def palworld_api():
     settings = palworld_config.read_settings(SETTINGS_FILE)
     password = palworld_config.unquote(settings.get("AdminPassword", ""))
-    return PalworldAPI(API_URL, password)
+    return PalworldAPI(API_URL, password, timeout=3)
 
 
 def announce_quiet(message):
@@ -83,10 +87,13 @@ def announce_quiet(message):
 
 
 def service_state():
-    result = subprocess.run(
-        ["systemctl", "is-active", f"{SERVICE}.service"],
-        capture_output=True, text=True, check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", f"{SERVICE}.service"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return "unknown"  # machine sans systemd (environnement de dev)
     return result.stdout.strip() or "unknown"
 
 
@@ -176,6 +183,24 @@ def _shift_minutes(hhmm, delta):
     return moment.strftime("%H:%M")
 
 
+def sample_metrics():
+    """Un point d'historique par minute (joueurs, FPS, RAM) pour les graphiques."""
+    entry = {"t": int(time.time())}
+    if service_state() == "active":
+        try:
+            metrics = palworld_api().metrics()
+            entry["fps"] = metrics.get("serverfps")
+            entry["players"] = metrics.get("currentplayernum")
+        except APIError:
+            pass
+    stats = system_stats()
+    if "mem_used" in stats:
+        entry["mem"] = stats["mem_used"]
+        entry["mem_total"] = stats["mem_total"]
+    with _history_lock:
+        HISTORY.append(entry)
+
+
 def scheduler_loop():
     """Sauvegardes automatiques + redémarrage quotidien avec préavis en jeu."""
     last_minute = None
@@ -202,6 +227,7 @@ def scheduler_loop():
             if minute == last_minute:
                 continue
             last_minute = minute
+            sample_metrics()
             if not state["auto_restart_enabled"] or service_state() != "active":
                 continue
             target = state["auto_restart_time"]
@@ -270,7 +296,8 @@ def api_status():
 @app.post("/api/action")
 @login_required
 def api_action():
-    action = (request.get_json(silent=True) or {}).get("action", "")
+    payload = request.get_json(silent=True) or {}
+    action = payload.get("action", "")
     try:
         if action in ("stop", "restart"):
             try:
@@ -282,6 +309,16 @@ def api_action():
             systemctl("start")
         elif action == "save":
             palworld_api().save()
+        elif action == "shutdown":
+            try:
+                waittime = int(payload.get("waittime", 300))
+            except (TypeError, ValueError):
+                return jsonify(error="Délai invalide."), 400
+            if not 10 <= waittime <= 3600:
+                return jsonify(error="Délai entre 10 et 3600 secondes."), 400
+            message = str(payload.get("message") or "").strip() \
+                or f"Arret du serveur dans {max(1, waittime // 60)} min"
+            palworld_api().shutdown(waittime, message)
         elif action == "update":
             if not run_script_async("update", SCRIPTS_DIR / "update.sh"):
                 return jsonify(error="Une tâche est déjà en cours."), 409
@@ -315,11 +352,19 @@ def api_announce():
 def api_players(action):
     if action not in ("kick", "ban", "unban"):
         return jsonify(error="Action inconnue."), 400
-    userid = (request.get_json(silent=True) or {}).get("userid", "").strip()
+    data = request.get_json(silent=True) or {}
+    userid = str(data.get("userid", "")).strip()
+    message = str(data.get("message") or "").strip()
     if not userid:
         return jsonify(error="Identifiant joueur manquant."), 400
     try:
-        getattr(palworld_api(), action)(userid)
+        api = palworld_api()
+        if action == "unban":
+            api.unban(userid)
+        elif message:
+            getattr(api, action)(userid, message)
+        else:
+            getattr(api, action)(userid)
     except APIError as exc:
         return jsonify(error=str(exc)), 502
     return jsonify(ok=True)
@@ -351,6 +396,37 @@ def api_config_set():
         palworld_config.write_settings(SETTINGS_FILE, {k: str(v) for k, v in settings.items()})
     except OSError as exc:
         return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
+
+
+@app.get("/api/history")
+@login_required
+def api_history():
+    with _history_lock:
+        return jsonify(history=list(HISTORY))
+
+
+@app.post("/api/panel-password")
+@login_required
+def api_panel_password():
+    data = request.get_json(silent=True) or {}
+    current = str(data.get("current", ""))
+    new = str(data.get("new", ""))
+    if not check_password_hash(CONFIG["panel_password_hash"], current):
+        time.sleep(1)
+        return jsonify(error="Mot de passe actuel incorrect."), 403
+    if len(new) < 8:
+        return jsonify(error="Le nouveau mot de passe doit faire au moins 8 caractères."), 400
+    new_hash = generate_password_hash(new)
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as handle:
+            disk_config = json.load(handle)
+        disk_config["panel_password_hash"] = new_hash
+        with open(CONFIG_PATH, "w", encoding="utf-8") as handle:
+            json.dump(disk_config, handle, indent=2)
+    except OSError as exc:
+        return jsonify(error=f"Écriture impossible : {exc}"), 500
+    CONFIG["panel_password_hash"] = new_hash
     return jsonify(ok=True)
 
 
@@ -443,11 +519,15 @@ def api_backup_delete(name):
 def api_console():
     def stream():
         yield f"data: {json.dumps('— console connectée, en attente de logs… —')}\n\n"
-        process = subprocess.Popen(
-            ["journalctl", "-f", "-n", "200", "--no-hostname",
-             "-u", f"{SERVICE}.service", "-u", "palworld-panel.service"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
-        )
+        try:
+            process = subprocess.Popen(
+                ["journalctl", "-f", "-n", "200", "--no-hostname",
+                 "-u", f"{SERVICE}.service", "-u", "palworld-panel.service"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            )
+        except OSError as exc:
+            yield f"data: {json.dumps(f'journalctl indisponible : {exc}')}\n\n"
+            return
         try:
             for line in process.stdout:
                 yield f"data: {json.dumps(line.rstrip())}\n\n"

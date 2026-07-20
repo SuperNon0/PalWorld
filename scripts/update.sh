@@ -7,12 +7,18 @@ set -euo pipefail
 SERVER_DIR="${SERVER_DIR:-/opt/palworld/server}"
 STEAMCMD="${STEAMCMD:-/usr/games/steamcmd}"
 APP_ID=2394010
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 WAS_ACTIVE=0
 if systemctl is-active --quiet palworld.service; then
     WAS_ACTIVE=1
     echo "[update] Arrêt du serveur Palworld…"
     sudo -n /usr/bin/systemctl stop palworld.service
+fi
+
+if [[ -d "$SERVER_DIR/Pal/Saved" ]]; then
+    echo "[update] Sauvegarde de sécurité du monde avant mise à jour…"
+    "$SCRIPT_DIR/backup.sh" || echo "[update] AVERTISSEMENT : sauvegarde échouée, poursuite de la mise à jour."
 fi
 
 echo "[update] Téléchargement de la mise à jour via SteamCMD…"
