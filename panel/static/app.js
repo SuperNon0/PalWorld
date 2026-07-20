@@ -70,9 +70,11 @@ function renderStatus(status) {
 
   const taskPill = $("#task-pill");
   const TASK_LABELS = {
-    update: "Mise à jour en cours…",
+    update: "Mise à jour serveur…",
+    "update-panel": "Mise à jour panel…",
     backup: "Sauvegarde en cours…",
     restore: "Restauration en cours…",
+    tunnel: "Installation du tunnel…",
   };
   if (status.task) {
     taskPill.textContent = TASK_LABELS[status.task] || "Tâche en cours…";
@@ -80,6 +82,8 @@ function renderStatus(status) {
   } else {
     taskPill.classList.add("hidden");
   }
+
+  renderNotifications(status.notifications);
 
   const metrics = status.metrics || {};
   const info = status.info || {};
@@ -129,11 +133,35 @@ async function refreshStatus() {
   }
 }
 
+// ------------------------------------------------------------ notifications
+function renderNotifications(notes) {
+  notes = notes || [];
+  const count = $("#bell-count");
+  const menu = $("#bell-menu");
+  if (!notes.length) {
+    count.classList.add("hidden");
+    menu.innerHTML = '<div class="bell-empty muted">Aucune notification</div>';
+    return;
+  }
+  count.textContent = notes.length;
+  count.classList.remove("hidden");
+  menu.innerHTML = notes
+    .map((n) => {
+      const cls = { warn: "warn", danger: "danger", info: "info" }[n.level] || "info";
+      const btn = n.action
+        ? `<button class="btn small" data-notif-action="${escapeHtml(n.action)}">Traiter</button>`
+        : "";
+      return `<div class="bell-item ${cls}"><span>${escapeHtml(n.text)}</span>${btn}</div>`;
+    })
+    .join("");
+}
+
 // ------------------------------------------------------------------ actions
 const CONFIRMATIONS = {
   stop: "Arrêter le serveur ? Le monde sera sauvegardé avant l'arrêt.",
   restart: "Redémarrer le serveur ? Le monde sera sauvegardé avant.",
   update: "Mettre à jour le serveur ? Il sera arrêté pendant la mise à jour SteamCMD.",
+  "update-panel": "Mettre à jour le panel depuis GitHub ? Le panel va redémarrer (bref instant d'indisponibilité).",
 };
 
 async function doAction(action) {
@@ -145,11 +173,117 @@ async function doAction(action) {
       stop: "Arrêt demandé.",
       restart: "Redémarrage demandé.",
       save: "Monde sauvegardé.",
-      update: "Mise à jour lancée (suivez la progression dans la console).",
+      update: "Mise à jour du serveur lancée (suivez la console).",
       backup: "Sauvegarde lancée.",
+      "update-panel": "Mise à jour du panel lancée, il va redémarrer…",
     };
     toast(labels[action] || "OK");
-    setTimeout(refreshStatus, 1500);
+    if (action === "update-panel") {
+      // le panel redémarre : on recharge la page après quelques secondes
+      setTimeout(() => window.location.reload(), 8000);
+    } else {
+      setTimeout(refreshStatus, 1500);
+    }
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// --------------------------------------------------------------- tunnel playit
+async function loadTunnel() {
+  try {
+    const t = await api("/api/tunnel");
+    const pill = $("#tunnel-pill");
+    const installBlock = $("#tunnel-install-block");
+    const manageBlock = $("#tunnel-manage-block");
+    if (!t.installed) {
+      pill.textContent = "Non installé";
+      pill.className = "pill offline";
+      installBlock.classList.remove("hidden");
+      manageBlock.classList.add("hidden");
+      return;
+    }
+    installBlock.classList.add("hidden");
+    manageBlock.classList.remove("hidden");
+    const active = t.active === "active";
+    pill.textContent = active ? "● Actif" : "○ Arrêté";
+    pill.className = "pill " + (active ? "online" : "starting");
+    const claim = $("#tunnel-claim");
+    if (t.claim_url) {
+      $("#tunnel-claim-link").href = t.claim_url;
+      claim.classList.remove("hidden");
+    } else {
+      claim.classList.add("hidden");
+    }
+  } catch (err) {
+    /* onglet inactif ou panel occupé */
+  }
+}
+
+async function tunnelInstall() {
+  if (!confirm("Installer l'agent playit.gg sur cette machine ? (installation en root, une seule fois)")) return;
+  try {
+    await api("/api/tunnel/install", { method: "POST" });
+    toast("Installation du tunnel lancée (30 s à 1 min)…");
+    setTimeout(loadTunnel, 5000);
+    setTimeout(loadTunnel, 20000);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function tunnelAction(action) {
+  try {
+    await api(`/api/tunnel/${action}`, { method: "POST" });
+    toast("Tunnel : " + action);
+    setTimeout(loadTunnel, 1200);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// ---------------------------------------------------------------- maintenance
+function fmtBuild(b) {
+  return b ? `#${b}` : "inconnu";
+}
+
+async function loadMaintenance() {
+  try {
+    const s = await api("/api/scheduler");
+    $("#server-build-info").textContent =
+      `Build installé : ${fmtBuild(s.server_local_build)}` +
+      (s.server_latest_build ? ` · dernier disponible : ${fmtBuild(s.server_latest_build)}` : "");
+    const sState = $("#server-update-state");
+    if (s.server_update_available) {
+      sState.textContent = "⬆ Mise à jour disponible";
+      sState.className = "update-state avail";
+    } else if (s.server_local_build) {
+      sState.textContent = "✓ À jour";
+      sState.className = "update-state ok";
+    } else {
+      sState.textContent = "—";
+      sState.className = "update-state";
+    }
+    const pState = $("#panel-update-state");
+    if (s.panel_update_available) {
+      pState.textContent = "⬆ Mise à jour disponible sur GitHub";
+      pState.className = "update-state avail";
+    } else {
+      pState.textContent = "✓ À jour";
+      pState.className = "update-state ok";
+    }
+  } catch (err) {
+    /* silencieux */
+  }
+}
+
+async function checkUpdates() {
+  toast("Vérification des mises à jour…");
+  try {
+    await api("/api/check-updates", { method: "POST" });
+    loadMaintenance();
+    refreshStatus();
+    toast("Vérification terminée.");
   } catch (err) {
     toast(err.message, true);
   }
@@ -463,6 +597,8 @@ function showTab(name) {
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
   if (name === "backups") loadBackups();
+  if (name === "acces") loadTunnel();
+  if (name === "maintenance") loadMaintenance();
 }
 
 // ------------------------------------------------------------------- init
@@ -566,6 +702,30 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("#scheduler-save").addEventListener("click", saveScheduler);
+
+  // Tunnel playit.gg
+  $("#tunnel-install").addEventListener("click", tunnelInstall);
+  $("#tunnel-start").addEventListener("click", () => tunnelAction("start"));
+  $("#tunnel-stop").addEventListener("click", () => tunnelAction("stop"));
+  $("#tunnel-restart").addEventListener("click", () => tunnelAction("restart"));
+
+  // Maintenance
+  $("#check-updates").addEventListener("click", checkUpdates);
+
+  // Cloche de notifications
+  $("#bell").addEventListener("click", (e) => {
+    e.stopPropagation();
+    $("#bell-menu").classList.toggle("hidden");
+  });
+  document.addEventListener("click", () => $("#bell-menu").classList.add("hidden"));
+  $("#bell-menu").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const btn = e.target.closest("[data-notif-action]");
+    if (!btn) return;
+    $("#bell-menu").classList.add("hidden");
+    const action = btn.dataset.notifAction;
+    if (action === "update-panel" || action === "update") doAction(action);
+  });
 
   document.querySelectorAll(".chart canvas").forEach((canvas) => {
     canvas.addEventListener("mousemove", (event) => {

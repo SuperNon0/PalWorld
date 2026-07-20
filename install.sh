@@ -88,7 +88,12 @@ rm -rf "$PANEL_DIR" "$SCRIPTS_DIR"
 cp -a "$REPO_DIR/panel" "$PANEL_DIR"
 cp -a "$REPO_DIR/scripts" "$SCRIPTS_DIR"
 chmod +x "$SCRIPTS_DIR"/*.sh
-chown -R palworld:palworld "$PANEL_DIR" "$SCRIPTS_DIR"
+chown -R palworld:palworld "$PANEL_DIR"
+# Les scripts appartiennent à root : le panel peut les exécuter (certains via
+# sudo) mais l'utilisateur palworld ne peut pas les modifier (pas d'élévation
+# de privilèges possible via les scripts autorisés dans le sudoers).
+chown -R root:root "$SCRIPTS_DIR"
+chmod 755 "$SCRIPTS_DIR" "$SCRIPTS_DIR"/*.sh
 
 # ------------------------------------------------ 4. serveur Palworld (SteamCMD)
 # Sur une réinstallation, on ne met jamais à jour les fichiers pendant que
@@ -163,7 +168,7 @@ fi
 log "Écriture de la configuration du panel…"
 PANEL_HASH="$PANEL_HASH" SECRET_KEY="$SECRET_KEY" PANEL_PORT="$PANEL_PORT" \
 SERVER_DIR="$SERVER_DIR" BACKUP_DIR="$BACKUP_DIR" SCRIPTS_DIR="$SCRIPTS_DIR" \
-PALWORLD_HOME="$PALWORLD_HOME" \
+PALWORLD_HOME="$PALWORLD_HOME" SOURCE_DIR="$REPO_DIR" \
 python3 - <<'PYEOF'
 import json, os
 config = {
@@ -172,9 +177,11 @@ config = {
     "panel_port": int(os.environ["PANEL_PORT"]),
     "bind": "0.0.0.0",
     "service_name": "palworld",
+    "panel_service_name": "palworld-panel",
     "server_dir": os.environ["SERVER_DIR"],
     "backup_dir": os.environ["BACKUP_DIR"],
     "scripts_dir": os.environ["SCRIPTS_DIR"],
+    "source_dir": os.environ["SOURCE_DIR"],
     "state_file": os.environ["PALWORLD_HOME"] + "/panel-state.json",
     "api_url": "http://127.0.0.1:8212",
 }
@@ -190,9 +197,14 @@ log "Installation des services systemd…"
 sed "s/@GAME_PORT@/$GAME_PORT/" "$REPO_DIR/systemd/palworld.service" > /etc/systemd/system/palworld.service
 cp "$REPO_DIR/systemd/palworld-panel.service" /etc/systemd/system/palworld-panel.service
 
-# Droits sudo limités : le panel ne peut piloter QUE le service palworld
+# Droits sudo limités et explicites : le panel ne peut faire QUE ces actions
+# précises en root (pilotage des services autorisés + 2 scripts root figés,
+# non modifiables par palworld puisqu'ils appartiennent à root).
 cat > /etc/sudoers.d/palworld-panel <<'EOF'
 palworld ALL=(root) NOPASSWD: /usr/bin/systemctl start palworld.service, /usr/bin/systemctl stop palworld.service, /usr/bin/systemctl restart palworld.service
+palworld ALL=(root) NOPASSWD: /usr/bin/systemctl start playit.service, /usr/bin/systemctl stop playit.service, /usr/bin/systemctl restart playit.service
+palworld ALL=(root) NOPASSWD: /opt/palworld/scripts/tunnel-playit.sh
+palworld ALL=(root) NOPASSWD: /opt/palworld/scripts/update-panel.sh
 EOF
 chmod 440 /etc/sudoers.d/palworld-panel
 

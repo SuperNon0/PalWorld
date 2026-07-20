@@ -31,8 +31,21 @@ chaque composant.
 | `scripts/update.sh` | Arrêt → mise à jour SteamCMD → redémarrage |
 | `scripts/backup.sh` | Archive `Pal/Saved` + rotation |
 | `scripts/restore.sh` | Restauration d'une archive (avec sauvegarde de sécurité préalable) |
-| `scripts/tunnel-playit.sh` | Installe l'agent playit.gg (accès joueurs sans ouvrir de port) |
+| `scripts/tunnel-playit.sh` | Installe l'agent playit.gg (accès joueurs sans ouvrir de port). Lancé par le panel via sudo |
+| `scripts/update-panel.sh` | Met à jour le panel depuis GitHub (git pull + copie + redémarrage). Motif `main()` pour auto-remplacement sûr |
 | `proxmox/palworld-vm.sh` | **Sur l'hôte Proxmox** : crée la VM Ubuntu et l'installe via cloud-init |
+
+### Modèle de privilèges du panel
+
+Le panel tourne en tant qu'utilisateur `palworld` (sans privilèges). Les
+actions root passent par un sudoers **strictement limité** (`/etc/sudoers.d/palworld-panel`) :
+`systemctl start/stop/restart` sur `palworld.service` et `playit.service`,
+plus deux scripts root figés (`tunnel-playit.sh`, `update-panel.sh`). Ces
+scripts appartiennent à `root:root` (mode 755) : `palworld` peut les exécuter
+mais pas les modifier, ce qui empêche toute élévation de privilèges. La
+détection de mise à jour du serveur compare le `buildid` de
+`appmanifest_2394010.acf` au dernier build public (API steamcmd.net) ; celle du
+panel compare `HEAD` au suivi distant du dépôt `source_dir`.
 | `systemd/*.service` | Unités systemd (le port jeu est injecté par `install.sh` via `@GAME_PORT@`) |
 
 Choix techniques :

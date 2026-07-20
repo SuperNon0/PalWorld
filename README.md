@@ -30,6 +30,12 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 - 🔄 **Redémarrage quotidien programmable** avec préavis aux joueurs en jeu
   (5 min et 1 min avant)
 - 📈 RAM et disque de la machine sur le tableau de bord
+- 🌐 **Onglet Accès / Tunnel** : installe et pilote le tunnel playit.gg
+  directement depuis le panel (bouton), affiche le lien d'association
+- 🔔 **Notifications** : alerte quand une mise à jour du serveur ou du panel
+  est disponible, ou en cas d'espace disque faible
+- 🧩 **Onglet Maintenance** : met à jour le serveur de jeu (SteamCMD) **et le
+  panel lui-même** (git pull + redémarrage) en un clic
 
 ## Prérequis (VM Proxmox recommandée)
 

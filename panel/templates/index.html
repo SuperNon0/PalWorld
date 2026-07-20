@@ -19,13 +19,17 @@
     <div class="status-zone">
       <span id="status-pill" class="pill offline">Hors ligne</span>
       <span id="task-pill" class="pill task hidden"></span>
+      <div class="bell-wrap">
+        <button id="bell" class="bell" title="Notifications" aria-label="Notifications">🔔<span id="bell-count" class="bell-count hidden">0</span></button>
+        <div id="bell-menu" class="bell-menu hidden"></div>
+      </div>
     </div>
     <div class="actions">
       <button class="btn success" data-action="start">▶ Démarrer</button>
       <button class="btn warn" data-action="restart">⟳ Redémarrer</button>
       <button class="btn danger" data-action="stop">■ Arrêter</button>
       <button class="btn" data-action="save" title="Force la sauvegarde du monde">Sauvegarder le monde</button>
-      <button class="btn" data-action="update" title="Mise à jour du serveur via SteamCMD">Mettre à jour</button>
+      <button class="btn" data-action="update" title="Mise à jour du serveur de jeu via SteamCMD">Mettre à jour le serveur</button>
       <form action="/logout" method="post" class="inline">
         <button type="submit" class="btn ghost">Déconnexion</button>
       </form>
@@ -37,6 +41,8 @@
     <button class="tab" data-tab="console">Console</button>
     <button class="tab" data-tab="config">Configuration</button>
     <button class="tab" data-tab="backups">Sauvegardes</button>
+    <button class="tab" data-tab="acces">Accès / Tunnel</button>
+    <button class="tab" data-tab="maintenance">Maintenance</button>
   </nav>
 
   <main>
@@ -163,6 +169,68 @@
           <thead><tr><th>Fichier</th><th>Taille</th><th>Date</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
+      </div>
+    </section>
+
+    <section id="tab-acces" class="tab-page">
+      <div class="section-header">
+        <h2>Accès des joueurs — tunnel playit.gg</h2>
+        <span id="tunnel-pill" class="pill offline">—</span>
+      </div>
+      <p class="hint">Permet aux joueurs de rejoindre le serveur <b>sans ouvrir de port</b> sur ta box. L'agent playit.gg se connecte en sortie et relaie le trafic.</p>
+
+      <div class="panel-block" id="tunnel-install-block">
+        <h2>1 · Installer le tunnel</h2>
+        <p class="hint">Installe l'agent playit.gg sur cette machine (action unique, exécutée en root).</p>
+        <button class="btn primary" id="tunnel-install">Installer le tunnel playit.gg</button>
+      </div>
+
+      <div class="panel-block hidden" id="tunnel-manage-block">
+        <h2>Contrôle du tunnel</h2>
+        <div class="auto-row">
+          <button class="btn success" id="tunnel-start">Démarrer</button>
+          <button class="btn danger" id="tunnel-stop">Arrêter</button>
+          <button class="btn" id="tunnel-restart">Redémarrer</button>
+        </div>
+
+        <div id="tunnel-claim" class="callout hidden">
+          <b>2 · Associe cette machine à ton compte playit.gg :</b><br>
+          <a id="tunnel-claim-link" href="#" target="_blank" rel="noopener">Ouvrir le lien d'association →</a>
+        </div>
+
+        <div class="steps">
+          <p><b>3 · Sur <a href="https://playit.gg" target="_blank" rel="noopener">playit.gg</a></b>, crée un tunnel :</p>
+          <ul>
+            <li>Type : <b>Palworld</b> (ou « UDP » si absent)</li>
+            <li>Port local : <b>8211</b> — Adresse : <code>127.0.0.1</code></li>
+          </ul>
+          <p><b>4 ·</b> playit.gg te donne une adresse <code>xxxxx.playit.gg:PORT</code> : donne-la à tes joueurs (Palworld → Rejoindre par IP).</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-maintenance" class="tab-page">
+      <div class="section-header">
+        <h2>Maintenance</h2>
+        <button class="btn ghost" id="check-updates">Vérifier les mises à jour</button>
+      </div>
+
+      <div class="panel-block">
+        <h2>Serveur de jeu</h2>
+        <p class="hint" id="server-build-info">Build installé : —</p>
+        <div class="auto-row">
+          <span id="server-update-state" class="update-state">—</span>
+          <button class="btn primary" data-action="update">Mettre à jour le serveur (SteamCMD)</button>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>Panel (le site)</h2>
+        <p class="hint">Récupère tes dernières fonctionnalités depuis GitHub et redémarre le panel.</p>
+        <div class="auto-row">
+          <span id="panel-update-state" class="update-state">—</span>
+          <button class="btn primary" data-action="update-panel">Mettre à jour le panel</button>
+        </div>
       </div>
     </section>
   </main>

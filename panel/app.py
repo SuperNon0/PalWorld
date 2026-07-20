@@ -22,6 +22,8 @@ import shutil
 import subprocess
 import threading
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -38,12 +40,22 @@ with open(CONFIG_PATH, encoding="utf-8") as _handle:
     CONFIG = json.load(_handle)
 
 SERVICE = CONFIG.get("service_name", "palworld")
+PANEL_SERVICE = CONFIG.get("panel_service_name", "palworld-panel")
+PLAYIT_SERVICE = "playit"
 SERVER_DIR = Path(CONFIG.get("server_dir", "/opt/palworld/server"))
 BACKUP_DIR = Path(CONFIG.get("backup_dir", "/opt/palworld/backups"))
 SCRIPTS_DIR = Path(CONFIG.get("scripts_dir", "/opt/palworld/scripts"))
+SOURCE_DIR = Path(CONFIG.get("source_dir", "/opt/palworld-src"))
 STATE_FILE = Path(CONFIG.get("state_file", "/opt/palworld/panel-state.json"))
 API_URL = CONFIG.get("api_url", "http://127.0.0.1:8212")
 SETTINGS_FILE = SERVER_DIR / "Pal" / "Saved" / "Config" / "LinuxServer" / "PalWorldSettings.ini"
+
+STEAM_APP_ID = "2394010"
+STEAMCMD_API = f"https://api.steamcmd.net/v1/info/{STEAM_APP_ID}"
+# Unités systemd que le panel a le droit de piloter (via le sudoers d'install)
+ALLOWED_UNITS = {SERVICE, PLAYIT_SERVICE}
+# Seuil d'alerte disque bas (5 Go)
+LOW_DISK_BYTES = 5 * 1024 ** 3
 
 VALID_BARE_VALUE = re.compile(r"^[A-Za-z0-9_.+\-]*$")
 VALID_QUOTED_VALUE = re.compile(r'^"[^"\r\n]*"$')
@@ -58,6 +70,12 @@ STATE_DEFAULTS = {
     "last_auto_backup": 0,
     "auto_restart_enabled": False,
     "auto_restart_time": "05:00",
+    # Détection de mises à jour (renseignée par le planificateur)
+    "update_check_time": 0,
+    "server_local_build": "",
+    "server_latest_build": "",
+    "server_update_available": False,
+    "panel_update_available": False,
 }
 
 app = Flask(__name__)
@@ -97,17 +115,58 @@ def service_state():
     return result.stdout.strip() or "unknown"
 
 
-def systemctl(action):
+def systemctl(action, unit=SERVICE):
+    if unit not in ALLOWED_UNITS:
+        raise RuntimeError(f"Unité non autorisée : {unit}")
     result = subprocess.run(
-        ["sudo", "-n", "/usr/bin/systemctl", action, f"{SERVICE}.service"],
+        ["sudo", "-n", "/usr/bin/systemctl", action, f"{unit}.service"],
         capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"systemctl {action} a échoué")
 
 
-def run_script_async(task_name, script_path, args=(), extra_env=None):
-    """Lance un script en arrière-plan (une seule tâche à la fois)."""
+def unit_active(unit):
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", f"{unit}.service"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return "unknown"
+    return result.stdout.strip() or "unknown"
+
+
+def unit_installed(unit):
+    try:
+        result = subprocess.run(
+            ["systemctl", "list-unit-files", f"{unit}.service", "--no-legend"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return False
+    return f"{unit}.service" in result.stdout
+
+
+def playit_claim_url():
+    """Extrait le dernier lien d'association playit.gg des logs du service."""
+    try:
+        result = subprocess.run(
+            ["journalctl", "-u", f"{PLAYIT_SERVICE}.service", "-n", "200", "--no-pager"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return None
+    urls = re.findall(r"https://playit\.gg/(?:claim|setup|mc-tunnel)/[A-Za-z0-9]+", result.stdout)
+    return urls[-1] if urls else None
+
+
+def run_script_async(task_name, script_path, args=(), extra_env=None, sudo=False):
+    """Lance un script en arrière-plan (une seule tâche à la fois).
+
+    Avec ``sudo=True``, le script est exécuté en root via ``sudo -n`` — réservé
+    aux scripts root explicitement autorisés dans le sudoers du panel.
+    """
     global _current_task
     if not _task_lock.acquire(blocking=False):
         return False
@@ -115,11 +174,15 @@ def run_script_async(task_name, script_path, args=(), extra_env=None):
     env = dict(os.environ, SERVER_DIR=str(SERVER_DIR), BACKUP_DIR=str(BACKUP_DIR))
     if extra_env:
         env.update(extra_env)
+    if sudo:
+        command = ["sudo", "-n", str(script_path), *args]
+    else:
+        command = ["/usr/bin/bash", str(script_path), *args]
 
     def worker():
         global _current_task
         try:
-            subprocess.run(["/usr/bin/bash", str(script_path), *args], check=False, env=env)
+            subprocess.run(command, check=False, env=env)
         finally:
             _current_task = None
             _task_lock.release()
@@ -166,6 +229,92 @@ def system_stats():
     return stats
 
 
+# ------------------------------------------------------ détection des mises à jour
+def server_local_build():
+    """Numéro de build Palworld installé (depuis l'appmanifest SteamCMD)."""
+    manifest = SERVER_DIR / "steamapps" / f"appmanifest_{STEAM_APP_ID}.acf"
+    try:
+        text = manifest.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    match = re.search(r'"buildid"\s+"(\d+)"', text)
+    return match.group(1) if match else ""
+
+
+def server_latest_build():
+    """Dernier build public Palworld via l'API communautaire steamcmd.net."""
+    try:
+        request = urllib.request.Request(STEAMCMD_API, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(request, timeout=6) as response:
+            data = json.loads(response.read().decode(errors="replace"))
+    except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+        return ""
+    try:
+        branches = data["data"][STEAM_APP_ID]["depots"]["branches"]
+        return str(branches["public"]["buildid"])
+    except (KeyError, TypeError):
+        return ""
+
+
+def panel_update_available():
+    """True si la copie locale du dépôt est en retard sur son origine GitHub."""
+    if not (SOURCE_DIR / ".git").exists():
+        return False
+    try:
+        subprocess.run(["git", "-C", str(SOURCE_DIR), "fetch", "--quiet"],
+                       capture_output=True, text=True, check=False, timeout=30)
+        local = subprocess.run(["git", "-C", str(SOURCE_DIR), "rev-parse", "HEAD"],
+                               capture_output=True, text=True, check=False)
+        remote = subprocess.run(["git", "-C", str(SOURCE_DIR), "rev-parse", "@{u}"],
+                                capture_output=True, text=True, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if local.returncode or remote.returncode:
+        return False
+    return local.stdout.strip() != remote.stdout.strip()
+
+
+def check_for_updates():
+    """Met à jour l'état avec la disponibilité des mises à jour (serveur + panel)."""
+    local_build = server_local_build()
+    latest_build = server_latest_build()
+    panel_upd = panel_update_available()
+    with _state_lock:
+        state = load_state()
+        state["update_check_time"] = int(time.time())
+        state["server_local_build"] = local_build
+        # ne signale une MAJ serveur que si les deux builds sont connus et diffèrent
+        if local_build and latest_build:
+            state["server_latest_build"] = latest_build
+            state["server_update_available"] = local_build != latest_build
+        state["panel_update_available"] = panel_upd
+        save_state(state)
+
+
+def build_notifications(state, stats):
+    """Liste de notifications à afficher dans le panel."""
+    notes = []
+    if state.get("server_update_available"):
+        notes.append({
+            "level": "warn",
+            "text": "Une mise à jour du serveur Palworld est disponible.",
+            "action": "update",
+        })
+    if state.get("panel_update_available"):
+        notes.append({
+            "level": "info",
+            "text": "Une mise à jour du panel est disponible sur GitHub.",
+            "action": "update-panel",
+        })
+    if stats.get("disk_free") is not None and stats["disk_free"] < LOW_DISK_BYTES:
+        notes.append({
+            "level": "danger",
+            "text": "Espace disque faible sur la machine.",
+            "action": None,
+        })
+    return notes
+
+
 def login_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
@@ -202,11 +351,20 @@ def sample_metrics():
 
 
 def scheduler_loop():
-    """Sauvegardes automatiques + redémarrage quotidien avec préavis en jeu."""
+    """Sauvegardes auto + redémarrage quotidien + vérification des mises à jour."""
     last_minute = None
+    last_update_check = 0.0
     while True:
         time.sleep(20)
         try:
+            # Vérification des mises à jour toutes les 6 h (et au démarrage)
+            if time.time() - last_update_check >= 6 * 3600:
+                last_update_check = time.time()
+                try:
+                    check_for_updates()
+                except Exception:
+                    logging.exception("Vérification des mises à jour impossible")
+
             with _state_lock:
                 state = load_state()
 
@@ -279,8 +437,12 @@ def index():
 @login_required
 def api_status():
     state = service_state()
+    stats = system_stats()
     data = {"service": state, "task": _current_task, "api_ok": False,
-            "system": system_stats()}
+            "system": stats}
+    with _state_lock:
+        persisted = load_state()
+    data["notifications"] = build_notifications(persisted, stats)
     if state == "active":
         try:
             api = palworld_api()
@@ -321,6 +483,9 @@ def api_action():
             palworld_api().shutdown(waittime, message)
         elif action == "update":
             if not run_script_async("update", SCRIPTS_DIR / "update.sh"):
+                return jsonify(error="Une tâche est déjà en cours."), 409
+        elif action == "update-panel":
+            if not run_script_async("update-panel", SCRIPTS_DIR / "update-panel.sh", sudo=True):
                 return jsonify(error="Une tâche est déjà en cours."), 409
         elif action == "backup":
             if not run_script_async("backup", SCRIPTS_DIR / "backup.sh"):
@@ -467,6 +632,52 @@ def api_scheduler_set():
         except OSError as exc:
             return jsonify(error=f"Écriture de l'état impossible : {exc}"), 500
     return jsonify(ok=True)
+
+
+@app.get("/api/tunnel")
+@login_required
+def api_tunnel_status():
+    installed = unit_installed(PLAYIT_SERVICE)
+    data = {"installed": installed, "task": _current_task,
+            "active": unit_active(PLAYIT_SERVICE) if installed else "inactive"}
+    if installed:
+        url = playit_claim_url()
+        if url:
+            data["claim_url"] = url
+    return jsonify(data)
+
+
+@app.post("/api/tunnel/install")
+@login_required
+def api_tunnel_install():
+    if not run_script_async("tunnel", SCRIPTS_DIR / "tunnel-playit.sh", sudo=True):
+        return jsonify(error="Une tâche est déjà en cours."), 409
+    return jsonify(ok=True)
+
+
+@app.post("/api/tunnel/<action>")
+@login_required
+def api_tunnel_action(action):
+    if action not in ("start", "stop", "restart"):
+        return jsonify(error="Action inconnue."), 400
+    if not unit_installed(PLAYIT_SERVICE):
+        return jsonify(error="Le tunnel n'est pas installé."), 400
+    try:
+        systemctl(action, PLAYIT_SERVICE)
+    except RuntimeError as exc:
+        return jsonify(error=str(exc)), 500
+    return jsonify(ok=True)
+
+
+@app.post("/api/check-updates")
+@login_required
+def api_check_updates():
+    check_for_updates()
+    with _state_lock:
+        state = load_state()
+    return jsonify({key: state[key] for key in (
+        "update_check_time", "server_local_build", "server_latest_build",
+        "server_update_available", "panel_update_available")})
 
 
 @app.get("/api/backups")
