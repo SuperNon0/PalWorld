@@ -130,8 +130,10 @@ ssh_pwauth: true
 package_update: true
 packages:
   - git
+  - qemu-guest-agent
 runcmd:
   - export DEBIAN_FRONTEND=noninteractive
+  - systemctl enable --now qemu-guest-agent || true
   - git clone --branch $PW_BRANCH $PW_REPO /opt/palworld-src
   - bash /opt/palworld-src/install.sh --panel-password '$PANEL_PASSWORD' --admin-password '$ADMIN_PASSWORD' --max-players $MAX_PLAYERS
 EOF
@@ -181,12 +183,17 @@ ${GN}============================================================${CL}
   L'installation tourne au premier démarrage (SteamCMD télécharge
   ~8 Go). Patiente quelques minutes.
 
-  Trouver l'IP de la VM (agent invité) :
-      qm guest cmd $VMID network-get-interfaces
+  Trouver l'IP de la VM — deux méthodes :
+    1) Agent invité (dispo après ~2 min, une fois installé par cloud-init) :
+         qm guest cmd $VMID network-get-interfaces
+    2) Console série (tout de suite) :
+         qm terminal $VMID        (Entrée, login ubuntu, puis : ip a)
+         (quitter la console série : Ctrl+O)
   Puis : panel sur  http://IP_DE_LA_VM:8080
 
-  Suivre l'installation depuis l'hôte :
-      qm terminal $VMID      (puis se connecter et : journalctl -f)
+  Suivre l'installation (console série, puis) :
+      tail -f /var/log/cloud-init-output.log
+  → « Installation terminée ! » = panel prêt.
 ------------------------------------------------------------
   Ensuite, pour l'accès des joueurs sans ouvrir de port :
   dans la VM, lance  sudo /opt/palworld-src/scripts/tunnel-playit.sh
