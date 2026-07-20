@@ -8,11 +8,17 @@
   cluster Proxmox (pas de LXC pour les serveurs de jeu).
 - Langue de travail : **français** — documentation, interface du panel,
   messages de commit et échanges se font en français.
-- **Design du panel** : l'utilisateur doit fournir sa propre maquette/charte
-  graphique. En attendant, le panel utilise un thème sombre par défaut dont
-  toutes les couleurs sont centralisées dans le bloc `:root` de
-  `panel/static/style.css` — appliquer le futur design revient à modifier ces
-  variables (et si besoin les templates dans `panel/templates/`).
+- **Design du panel** : l'utilisateur a fourni sa charte graphique (maquette
+  « CDC / MultiOutils », juillet 2026), désormais appliquée au panel :
+  fond quasi noir `#0e0f11`, texte mono **DM Mono**, titres serif dorés
+  **DM Serif Display** (`#e8c547`), accents teal `#4fc3a1` / orange
+  `#e87c47` / rouge `#e85c47` / violet `#a78bfa`, chips translucides,
+  rayon 12 px. Les polices sont embarquées en base64 dans
+  `panel/static/fonts.css` (le panel fonctionne hors ligne). Toutes les
+  couleurs restent centralisées dans le bloc `:root` de
+  `panel/static/style.css`. Tout nouvel élément d'interface doit suivre
+  cette charte (logotype : minuscules serif, préfixe doré + suffixe
+  italique, badge mono uppercase).
 
 ## Le projet
 

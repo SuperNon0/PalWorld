@@ -92,7 +92,7 @@ function renderStatus(status) {
 
   const sys = status.system || {};
   $("#stat-ram").textContent = sys.mem_total
-    ? `${formatSize(sys.mem_used)} / ${formatSize(sys.mem_total)}`
+    ? `${(sys.mem_used / 1e9).toFixed(1)} / ${(sys.mem_total / 1e9).toFixed(1)} Go`
     : "–";
   $("#stat-disk").textContent = sys.disk_free != null ? formatSize(sys.disk_free) : "–";
 

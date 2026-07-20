@@ -4,14 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Palworld Panel</title>
+  <meta name="theme-color" content="#0e0f11">
+  <link rel="stylesheet" href="{{ url_for('static', filename='fonts.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-icon">🐑</span>
       <div>
-        <h1>Palworld Panel</h1>
+        <h1 class="logo"><span class="g">pal</span><span class="i">world</span><span class="badge">panel</span></h1>
         <span id="server-name" class="muted">—</span>
       </div>
     </div>
@@ -23,8 +24,8 @@
       <button class="btn success" data-action="start">▶ Démarrer</button>
       <button class="btn warn" data-action="restart">⟳ Redémarrer</button>
       <button class="btn danger" data-action="stop">■ Arrêter</button>
-      <button class="btn" data-action="save" title="Force la sauvegarde du monde">💾 Sauvegarder le monde</button>
-      <button class="btn" data-action="update" title="Mise à jour du serveur via SteamCMD">⬆ Mettre à jour</button>
+      <button class="btn" data-action="save" title="Force la sauvegarde du monde">Sauvegarder le monde</button>
+      <button class="btn" data-action="update" title="Mise à jour du serveur via SteamCMD">Mettre à jour</button>
       <form action="/logout" method="post" class="inline">
         <button type="submit" class="btn ghost">Déconnexion</button>
       </form>
@@ -154,7 +155,7 @@
     <section id="tab-backups" class="tab-page">
       <div class="section-header">
         <h2>Sauvegardes du monde</h2>
-        <button class="btn primary" id="backup-create">📦 Créer une sauvegarde</button>
+        <button class="btn primary" id="backup-create">Créer une sauvegarde</button>
       </div>
       <p class="hint">Archive complète du dossier <code>Pal/Saved</code> (monde, personnages, configuration).</p>
       <div class="table-wrap">

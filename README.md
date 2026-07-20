@@ -137,12 +137,16 @@ par la sauvegarde choisie, et le serveur redémarre.
 - N'exposez pas le port du panel directement sur Internet : gardez-le en LAN
   ou placez-le derrière un reverse proxy HTTPS (Nginx Proxy Manager, Caddy…).
 
-## Personnaliser le design
+## Design
 
-Tout le thème du panel est défini par les variables CSS en tête de
+Le panel suit la charte graphique du projet : fond quasi noir, texte
+monospace (DM Mono), titres serif dorés (DM Serif Display), accents
+or / teal / orange. Les polices sont **embarquées** dans
+`panel/static/fonts.css` : aucune connexion Internet n'est nécessaire.
+
+Tout le thème est défini par les variables CSS en tête de
 [`panel/static/style.css`](panel/static/style.css) (couleurs, polices,
-rayons). Il suffit de modifier ce bloc `:root` pour appliquer votre propre
-charte graphique.
+rayons) : modifier ce bloc `:root` suffit pour ajuster la charte.
 
 ## Développement
 

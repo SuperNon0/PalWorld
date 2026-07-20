@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Connexion — Palworld Panel</title>
+  <meta name="theme-color" content="#0e0f11">
+  <link rel="stylesheet" href="{{ url_for('static', filename='fonts.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="login-page">
   <form class="login-card" method="post" action="{{ url_for('login') }}">
-    <div class="login-logo">🐑</div>
-    <h1>Palworld Panel</h1>
-    <p class="muted">Administration du serveur dédié</p>
+    <div class="logo login-logo"><span class="g">pal</span><span class="i">world</span></div>
+    <span class="badge">panel · administration</span>
     {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
     <input type="password" name="password" placeholder="Mot de passe" autofocus required>
     <button type="submit" class="btn primary full">Se connecter</button>
