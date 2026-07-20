@@ -364,6 +364,21 @@ input::placeholder { color: var(--muted); }
 .update-state.avail { color: var(--orange); font-weight: 500; }
 .update-state.ok { color: var(--green); }
 
+/* -------------------------------------------------------------- adresse / IP */
+.server-ip {
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 9px;
+  margin-left: 8px;
+}
+.server-ip::before { content: "⬡ "; color: var(--accent); }
+.server-ip:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.card-addr { cursor: pointer; }
+.card-addr:hover { border-color: var(--accent); }
+.addr-value { font-family: var(--font-mono); font-size: 1.05rem; color: var(--accent); }
+
 /* --------------------------------------------------------------- graphiques */
 .charts {
   display: grid;

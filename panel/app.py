@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import shutil
+import socket
 import subprocess
 import threading
 import time
@@ -207,9 +208,35 @@ def save_state(state):
         json.dump(state, handle, indent=2)
 
 
+def local_ip():
+    """IP locale (LAN) de la machine, sans dépendance ni trafic réseau réel."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.connect(("8.8.8.8", 80))  # ne fait que choisir l'interface de sortie
+            return sock.getsockname()[0]
+        finally:
+            sock.close()
+    except OSError:
+        pass
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except OSError:
+        return None
+
+
+def game_port():
+    try:
+        settings = palworld_config.read_settings(SETTINGS_FILE)
+        port = palworld_config.unquote(settings.get("PublicPort", "8211"))
+        return int(port) if port.isdigit() else 8211
+    except (OSError, ValueError):
+        return 8211
+
+
 def system_stats():
     """RAM et disque de la machine (utile pour dimensionner la VM Proxmox)."""
-    stats = {}
+    stats = {"ip": local_ip()}
     try:
         meminfo = {}
         with open("/proc/meminfo", encoding="ascii") as handle:
@@ -439,7 +466,7 @@ def api_status():
     state = service_state()
     stats = system_stats()
     data = {"service": state, "task": _current_task, "api_ok": False,
-            "system": stats}
+            "system": stats, "game_port": game_port()}
     with _state_lock:
         persisted = load_state()
     data["notifications"] = build_notifications(persisted, stats)

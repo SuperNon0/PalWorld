@@ -100,6 +100,19 @@ function renderStatus(status) {
     : "–";
   $("#stat-disk").textContent = sys.disk_free != null ? formatSize(sys.disk_free) : "–";
 
+  const port = status.game_port || 8211;
+  const ipEl = $("#server-ip");
+  if (sys.ip) {
+    ipEl.textContent = sys.ip;
+    ipEl.dataset.copy = sys.ip;
+    ipEl.classList.remove("hidden");
+    $("#stat-addr").textContent = `${sys.ip}:${port}`;
+    $("#card-addr").dataset.copy = `${sys.ip}:${port}`;
+  } else {
+    ipEl.classList.add("hidden");
+    $("#stat-addr").textContent = "–";
+  }
+
   renderPlayers(status.players || []);
 }
 
@@ -711,6 +724,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);
+
+  // Copie de l'adresse / IP au clic
+  const copyText = (text) => {
+    if (!text) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => toast("Copié : " + text));
+    } else {
+      toast(text);
+    }
+  };
+  $("#card-addr").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
+  $("#server-ip").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
 
   // Cloche de notifications
   $("#bell").addEventListener("click", (e) => {
