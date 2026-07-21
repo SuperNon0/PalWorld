@@ -68,12 +68,27 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
 add-apt-repository -y multiverse >/dev/null 2>&1 || true
 apt-get update -y
 
-# Acceptation automatique de la licence Steam
+# Acceptation automatique de la licence Steam (sinon l'installation non
+# interactive reste bloquée sur la validation de la licence et échoue).
 echo steam steam/question select "I AGREE" | debconf-set-selections
 echo steam steam/license note "" | debconf-set-selections
-DEBIAN_FRONTEND=noninteractive apt-get install -y steamcmd lib32gcc-s1
 
-[[ -x $STEAMCMD ]] || fail "SteamCMD n'a pas pu être installé."
+# L'installation du paquet steamcmd échoue parfois (réseau, dépôt i386/multiverse)
+# et réussit à l'essai suivant → on réessaie jusqu'à 3 fois.
+steamcmd_ok=0
+for try in 1 2 3; do
+    log "Installation du paquet SteamCMD (tentative $try/3)…"
+    if DEBIAN_FRONTEND=noninteractive apt-get install -y steamcmd lib32gcc-s1 && [[ -x $STEAMCMD ]]; then
+        steamcmd_ok=1
+        break
+    fi
+    log "Échec — rafraîchissement des dépôts et nouvelle tentative dans 5 s…"
+    dpkg --add-architecture i386 || true
+    add-apt-repository -y multiverse >/dev/null 2>&1 || true
+    apt-get update -y || true
+    sleep 5
+done
+[[ $steamcmd_ok -eq 1 ]] || fail "SteamCMD n'a pas pu être installé après 3 tentatives (vérifie le réseau et le dépôt multiverse)."
 
 # --------------------------------------------------- 2. utilisateur et dossiers
 if ! id palworld >/dev/null 2>&1; then
@@ -176,19 +191,32 @@ if systemctl is-active --quiet palworld.service 2>/dev/null; then
     systemctl stop palworld.service
 fi
 
-log "Téléchargement / mise à jour du serveur Palworld (~8 Go, plusieurs minutes)…"
-# La sortie est renvoyée vers journald (identifiant « palworld-steamcmd ») pour
-# apparaître dans la Console du panel, en plus du log d'installation.
-if command -v systemd-cat >/dev/null; then
-    sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
-        +login anonymous +app_update "$APP_ID" validate +quit 2>&1 \
-        | tee >(systemd-cat -t palworld-steamcmd)
-else
-    sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
-        +login anonymous +app_update "$APP_ID" validate +quit
-fi
+# SteamCMD échoue souvent au 1er essai (téléchargement interrompu, « state 0x6x »)
+# et réussit au suivant : on réessaie jusqu'à 4 fois. La sortie est renvoyée vers
+# journald (identifiant « palworld-steamcmd ») pour apparaître dans la Console.
+steamcmd_update() {
+    if command -v systemd-cat >/dev/null; then
+        sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
+            +login anonymous +app_update "$APP_ID" validate +quit 2>&1 \
+            | tee >(systemd-cat -t palworld-steamcmd)
+    else
+        sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
+            +login anonymous +app_update "$APP_ID" validate +quit
+    fi
+}
 
-[[ -f "$SERVER_DIR/PalServer.sh" ]] || fail "L'installation du serveur a échoué (PalServer.sh introuvable)."
+MAX_ATTEMPTS=4
+attempt=1
+while true; do
+    log "Téléchargement / mise à jour du serveur Palworld (tentative $attempt/$MAX_ATTEMPTS, ~8 Go)…"
+    steamcmd_update || true
+    [[ -f "$SERVER_DIR/PalServer.sh" ]] && break
+    [[ $attempt -ge $MAX_ATTEMPTS ]] && fail "Installation du serveur échouée après $MAX_ATTEMPTS tentatives (PalServer.sh introuvable). Vérifie la connexion réseau et relance le script."
+    log "SteamCMD n'a pas abouti — nouvelle tentative dans 10 s…"
+    sleep 10
+    attempt=$((attempt + 1))
+done
+log "Serveur Palworld présent (PalServer.sh trouvé)."
 
 # Correctif SDK Steam requis par PalServer
 SDK_DIR=$PALWORLD_HOME/.steam/sdk64
