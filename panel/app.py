@@ -767,7 +767,13 @@ def api_users_password(username):
 @login_required
 def api_scheduler_get():
     with _state_lock:
-        return jsonify(load_state())
+        state = dict(load_state())
+    # Version installée lue en direct (le champ mis en cache n'est rafraîchi que
+    # toutes les 6 h ; on garantit ainsi que l'onglet Maintenance l'affiche).
+    live_build = server_local_build()
+    if live_build:
+        state["server_local_build"] = live_build
+    return jsonify(state)
 
 
 @app.post("/api/scheduler")

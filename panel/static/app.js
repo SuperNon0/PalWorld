@@ -41,6 +41,40 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
+// Copie dans le presse-papiers. L'API navigator.clipboard n'existe qu'en HTTPS
+// ou sur localhost ; le panel étant servi en HTTP simple, on utilise en secours
+// l'ancienne méthode execCommand (compatible HTTP).
+function copyText(text) {
+  if (!text) return;
+  const ok = () => toast("Copié : " + text);
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(ok, () => fallbackCopy(text, ok));
+  } else {
+    fallbackCopy(text, ok);
+  }
+}
+
+function fallbackCopy(text, ok) {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.top = "-1000px";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.focus();
+  area.select();
+  area.setSelectionRange(0, text.length);
+  let done = false;
+  try {
+    done = document.execCommand("copy");
+  } catch (err) {
+    done = false;
+  }
+  document.body.removeChild(area);
+  done ? ok() : toast("Copie impossible — copie manuellement : " + text, true);
+}
+
 function formatUptime(seconds) {
   if (!seconds && seconds !== 0) return "–";
   const h = Math.floor(seconds / 3600);
@@ -933,15 +967,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);
 
-  // Copie de l'adresse / IP au clic
-  const copyText = (text) => {
-    if (!text) return;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => toast("Copié : " + text));
-    } else {
-      toast(text);
-    }
-  };
+  // Copie de l'adresse / IP au clic (copyText défini au niveau module)
   $("#card-addr").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
   $("#server-ip").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
   $("#info-content").addEventListener("click", (e) => {
