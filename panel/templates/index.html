@@ -156,12 +156,18 @@
       </div>
 
       <div class="panel-block security-block">
-        <h2>Mot de passe du panel</h2>
-        <div class="auto-row">
-          <input type="password" id="pw-current" placeholder="Mot de passe actuel" autocomplete="current-password">
-          <input type="password" id="pw-new" placeholder="Nouveau mot de passe (8 caractères min.)" autocomplete="new-password">
-          <input type="password" id="pw-confirm" placeholder="Confirmer le nouveau mot de passe" autocomplete="new-password">
-          <button class="btn primary" id="pw-save">Changer</button>
+        <h2>Comptes du panel</h2>
+        <p class="hint">Gère les comptes qui peuvent se connecter au panel.</p>
+        <div class="table-wrap">
+          <table class="table" id="users-table">
+            <thead><tr><th>Identifiant</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="auto-row" style="margin-top:14px">
+          <input type="text" id="new-user" placeholder="Nouvel identifiant" autocomplete="off">
+          <input type="password" id="new-user-pw" placeholder="Mot de passe (8 min.)" autocomplete="new-password">
+          <button class="btn primary" id="user-create">Créer le compte</button>
         </div>
       </div>
     </section>

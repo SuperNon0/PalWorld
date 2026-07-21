@@ -88,6 +88,11 @@ _task_lock = threading.Lock()
 _current_task = None
 _state_lock = threading.Lock()
 _history_lock = threading.Lock()
+_users_lock = threading.Lock()
+
+# Comptes du panel : {identifiant: hash}. Fichier inscriptible par palworld.
+USERS_FILE = Path(CONFIG.get("users_file", str(STATE_FILE.parent / "panel-users.json")))
+VALID_USERNAME = re.compile(r"^[A-Za-z0-9_.\-]{3,32}$")
 HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minute
 
 
@@ -206,6 +211,29 @@ def save_state(state):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STATE_FILE, "w", encoding="utf-8") as handle:
         json.dump(state, handle, indent=2)
+
+
+def load_users():
+    """Comptes du panel. Migre depuis le mot de passe unique existant au 1er accès."""
+    try:
+        with open(USERS_FILE, encoding="utf-8") as handle:
+            users = json.load(handle)
+        if isinstance(users, dict) and users:
+            return users
+    except (OSError, ValueError):
+        pass
+    users = {"admin": CONFIG["panel_password_hash"]}
+    try:
+        save_users(users)
+    except OSError:
+        pass
+    return users
+
+
+def save_users(users):
+    USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(USERS_FILE, "w", encoding="utf-8") as handle:
+        json.dump(users, handle, indent=2)
 
 
 def local_ip():
@@ -439,11 +467,16 @@ def scheduler_loop():
 def login():
     error = None
     if request.method == "POST":
-        if check_password_hash(CONFIG["panel_password_hash"], request.form.get("password", "")):
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        with _users_lock:
+            stored = load_users().get(username)
+        if stored and check_password_hash(stored, password):
             session["logged_in"] = True
+            session["user"] = username
             return redirect(url_for("index"))
         time.sleep(1)  # freine les tentatives de force brute
-        error = "Mot de passe incorrect."
+        error = "Identifiant ou mot de passe incorrect."
     return render_template("login.html", error=error)
 
 
@@ -599,27 +632,69 @@ def api_history():
         return jsonify(history=list(HISTORY))
 
 
-@app.post("/api/panel-password")
+@app.get("/api/users")
 @login_required
-def api_panel_password():
+def api_users_list():
+    with _users_lock:
+        users = load_users()
+    return jsonify(users=sorted(users.keys()), current=session.get("user"))
+
+
+@app.post("/api/users")
+@login_required
+def api_users_create():
     data = request.get_json(silent=True) or {}
-    current = str(data.get("current", ""))
-    new = str(data.get("new", ""))
-    if not check_password_hash(CONFIG["panel_password_hash"], current):
-        time.sleep(1)
-        return jsonify(error="Mot de passe actuel incorrect."), 403
-    if len(new) < 8:
-        return jsonify(error="Le nouveau mot de passe doit faire au moins 8 caractères."), 400
-    new_hash = generate_password_hash(new)
-    try:
-        with open(CONFIG_PATH, encoding="utf-8") as handle:
-            disk_config = json.load(handle)
-        disk_config["panel_password_hash"] = new_hash
-        with open(CONFIG_PATH, "w", encoding="utf-8") as handle:
-            json.dump(disk_config, handle, indent=2)
-    except OSError as exc:
-        return jsonify(error=f"Écriture impossible : {exc}"), 500
-    CONFIG["panel_password_hash"] = new_hash
+    username = str(data.get("username", "")).strip()
+    password = str(data.get("password", ""))
+    if not VALID_USERNAME.match(username):
+        return jsonify(error="Identifiant invalide (3 à 32 caractères : lettres, chiffres, . _ -)."), 400
+    if len(password) < 8:
+        return jsonify(error="Le mot de passe doit faire au moins 8 caractères."), 400
+    with _users_lock:
+        users = load_users()
+        if username in users:
+            return jsonify(error="Cet identifiant existe déjà."), 409
+        users[username] = generate_password_hash(password)
+        try:
+            save_users(users)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
+
+
+@app.delete("/api/users/<username>")
+@login_required
+def api_users_delete(username):
+    with _users_lock:
+        users = load_users()
+        if username not in users:
+            return jsonify(error="Compte introuvable."), 404
+        if len(users) <= 1:
+            return jsonify(error="Impossible de supprimer le dernier compte."), 400
+        del users[username]
+        try:
+            save_users(users)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
+
+
+@app.post("/api/users/<username>/password")
+@login_required
+def api_users_password(username):
+    data = request.get_json(silent=True) or {}
+    password = str(data.get("password", ""))
+    if len(password) < 8:
+        return jsonify(error="Le mot de passe doit faire au moins 8 caractères."), 400
+    with _users_lock:
+        users = load_users()
+        if username not in users:
+            return jsonify(error="Compte introuvable."), 404
+        users[username] = generate_password_hash(password)
+        try:
+            save_users(users)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
     return jsonify(ok=True)
 
 

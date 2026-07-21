@@ -320,6 +320,80 @@ function startConsole() {
 }
 
 // ------------------------------------------------------------- configuration
+// Descriptions en français de chaque paramètre de PalWorldSettings.ini.
+const SETTING_DESCRIPTIONS = {
+  Difficulty: "Difficulté globale du serveur.",
+  DayTimeSpeedRate: "Vitesse d'écoulement du jour (plus haut = jours plus courts).",
+  NightTimeSpeedRate: "Vitesse d'écoulement de la nuit.",
+  ExpRate: "Multiplicateur de gain d'expérience (joueurs et Pals).",
+  PalCaptureRate: "Taux de réussite de capture des Pals.",
+  PalSpawnNumRate: "Densité d'apparition des Pals sauvages.",
+  PalDamageRateAttack: "Dégâts infligés par les Pals.",
+  PalDamageRateDefense: "Dégâts subis par les Pals (plus haut = plus fragiles).",
+  PlayerDamageRateAttack: "Dégâts infligés par les joueurs.",
+  PlayerDamageRateDefense: "Dégâts subis par les joueurs.",
+  PlayerStomachDecreaceRate: "Vitesse à laquelle la faim du joueur diminue.",
+  PlayerStaminaDecreaceRate: "Vitesse à laquelle l'endurance du joueur diminue.",
+  PlayerAutoHPRegeneRate: "Régénération automatique des PV du joueur.",
+  PlayerAutoHpRegeneRateInSleep: "Régénération des PV du joueur pendant le sommeil.",
+  PalStomachDecreaceRate: "Vitesse à laquelle la faim des Pals diminue.",
+  PalStaminaDecreaceRate: "Vitesse à laquelle l'endurance des Pals diminue.",
+  PalAutoHPRegeneRate: "Régénération automatique des PV des Pals.",
+  PalAutoHpRegeneRateInSleep: "Régénération des PV des Pals dans la Palbox.",
+  BuildObjectDamageRate: "Dégâts infligés aux constructions.",
+  BuildObjectDeteriorationDamageRate: "Vitesse de détérioration des constructions.",
+  CollectionDropRate: "Quantité de ressources obtenues par récolte.",
+  CollectionObjectHpRate: "Points de vie des objets à récolter (arbres, rochers…).",
+  CollectionObjectRespawnSpeedRate: "Vitesse de réapparition des ressources récoltables.",
+  EnemyDropItemRate: "Quantité d'objets lâchés par les ennemis.",
+  DeathPenalty: "Ce que le joueur perd à la mort (rien / objets / équipement / tout).",
+  bEnablePlayerToPlayerDamage: "Autorise les dégâts entre joueurs (PvP).",
+  bEnableFriendlyFire: "Active le tir allié (dégâts au sein d'une même guilde).",
+  bEnableInvaderEnemy: "Active les raids d'ennemis sur les bases.",
+  bActiveUNKO: "Paramètre spécial du jeu — à laisser par défaut.",
+  bEnableAimAssistPad: "Assistance à la visée à la manette.",
+  bEnableAimAssistKeyboard: "Assistance à la visée au clavier/souris.",
+  DropItemMaxNum: "Nombre maximum d'objets lâchés au sol simultanément.",
+  BaseCampMaxNum: "Nombre maximum de camps de base sur le serveur.",
+  BaseCampWorkerMaxNum: "Nombre maximum de Pals travailleurs par camp de base.",
+  DropItemAliveMaxHours: "Durée de vie (heures) d'un objet lâché au sol.",
+  bAutoResetGuildNoOnlinePlayers: "Dissout automatiquement les guildes sans joueur connecté.",
+  AutoResetGuildTimeNoOnlinePlayers: "Délai (heures) avant dissolution d'une guilde inactive.",
+  GuildPlayerMaxNum: "Nombre maximum de joueurs par guilde.",
+  PalEggDefaultHatchingTime: "Temps d'éclosion des gros œufs (heures).",
+  WorkSpeedRate: "Vitesse de travail des Pals dans les bases.",
+  bIsMultiplay: "Coop locale — à laisser par défaut sur un serveur dédié.",
+  bIsPvP: "Active le mode Joueur contre Joueur (PvP).",
+  bCanPickupOtherGuildDeathPenaltyDrop: "Autorise à ramasser le butin de mort des autres guildes.",
+  bEnableNonLoginPenalty: "Applique une pénalité aux joueurs absents longtemps.",
+  bEnableFastTravel: "Autorise le voyage rapide entre points de téléportation.",
+  bIsStartLocationSelectByMap: "Le joueur choisit son point de départ sur la carte.",
+  bExistPlayerAfterLogout: "Le personnage reste présent dans le monde après déconnexion.",
+  bEnableDefenseOtherGuildPlayer: "Permet aux bases de se défendre contre les joueurs ennemis.",
+  CoopPlayerMaxNum: "Nombre maximum de joueurs en coopération (partie privée).",
+  ServerPlayerMaxNum: "Nombre maximum de joueurs sur le serveur.",
+  ServerName: "Nom du serveur affiché dans la liste.",
+  ServerDescription: "Description du serveur affichée dans la liste.",
+  AdminPassword: "Mot de passe administrateur (API REST / RCON). Utilisé par ce panel.",
+  ServerPassword: "Mot de passe demandé aux joueurs pour rejoindre (vide = public).",
+  PublicPort: "Port UDP public du serveur de jeu.",
+  PublicIP: "IP publique annoncée (laisser vide en général).",
+  RCONEnabled: "Active l'accès RCON (administration à distance).",
+  RCONPort: "Port RCON.",
+  Region: "Région déclarée du serveur.",
+  bUseAuth: "Exige l'authentification des joueurs.",
+  BanListURL: "URL de la liste de bannissement partagée.",
+  RESTAPIEnabled: "Active l'API REST — indispensable au fonctionnement de ce panel.",
+  RESTAPIPort: "Port de l'API REST (8212 par défaut, utilisé par le panel).",
+  bShowPlayerList: "Rend publique la liste des joueurs connectés.",
+  AllowConnectPlatform: "Plateformes autorisées à se connecter (Steam, etc.).",
+  bIsUseBackupSaveData: "Sauvegardes automatiques du monde par le serveur.",
+  LogFormatType: "Format des journaux du serveur (Text / Json).",
+  ServerReplicatePawnCullDistance: "Distance au-delà de laquelle les entités ne sont plus synchronisées.",
+  CoopPlayerMaxNum_UNKO: "Paramètre spécial — à laisser par défaut.",
+  DropItemMaxNum_UNKO: "Paramètre spécial — à laisser par défaut.",
+};
+
 function inputForSetting(key, rawValue) {
   const quoted = /^".*"$/.test(rawValue);
   configMeta[key] = { quoted };
@@ -341,10 +415,13 @@ async function loadConfig() {
     const data = await api("/api/config");
     configMeta = {};
     const rows = Object.entries(data.settings)
-      .map(([key, value]) => `<tr data-setting="${key.toLowerCase()}">
-          <td>${key}</td>
+      .map(([key, value]) => {
+        const desc = SETTING_DESCRIPTIONS[key];
+        return `<tr data-setting="${key.toLowerCase()}">
+          <td>${key}${desc ? `<span class="setting-desc">${escapeHtml(desc)}</span>` : ""}</td>
           <td>${inputForSetting(key, value)}</td>
-        </tr>`)
+        </tr>`;
+      })
       .join("");
     $("#config-table tbody").innerHTML =
       rows || '<tr><td class="muted">Configuration introuvable — le serveur a-t-il été installé ?</td></tr>';
@@ -375,6 +452,27 @@ async function saveConfig() {
     toast("Configuration enregistrée. Redémarrez le serveur pour l'appliquer.");
   } catch (err) {
     toast(err.message, true);
+  }
+}
+
+async function loadUsers() {
+  try {
+    const data = await api("/api/users");
+    const tbody = $("#users-table tbody");
+    tbody.innerHTML = data.users
+      .map((u) => {
+        const isCurrent = u === data.current;
+        return `<tr>
+          <td>${escapeHtml(u)}${isCurrent ? ' <span class="muted">(vous)</span>' : ""}</td>
+          <td class="backup-actions">
+            <button class="btn small" data-user-pw="${escapeHtml(u)}">Mot de passe</button>
+            <button class="btn small danger" data-user-del="${escapeHtml(u)}" ${data.users.length <= 1 ? "disabled" : ""}>Supprimer</button>
+          </td>
+        </tr>`;
+      })
+      .join("");
+  } catch (err) {
+    /* silencieux */
   }
 }
 
@@ -611,7 +709,10 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "console") startConsole();
-  if (name === "config" && !configLoaded) loadConfig();
+  if (name === "config") {
+    if (!configLoaded) loadConfig();
+    loadUsers();
+  }
   if (name === "backups") loadBackups();
   if (name === "acces") loadTunnel();
   if (name === "maintenance") loadMaintenance();
@@ -697,16 +798,44 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  $("#pw-save").addEventListener("click", async () => {
-    const current = $("#pw-current").value;
-    const next = $("#pw-new").value;
-    if (next !== $("#pw-confirm").value) return toast("La confirmation ne correspond pas.", true);
+  $("#user-create").addEventListener("click", async () => {
+    const username = $("#new-user").value.trim();
+    const password = $("#new-user-pw").value;
+    if (!username || !password) return toast("Identifiant et mot de passe requis.", true);
     try {
-      await api("/api/panel-password", { body: { current, new: next } });
-      toast("Mot de passe du panel modifié.");
-      ["#pw-current", "#pw-new", "#pw-confirm"].forEach((sel) => ($(sel).value = ""));
+      await api("/api/users", { body: { username, password } });
+      toast("Compte créé.");
+      $("#new-user").value = "";
+      $("#new-user-pw").value = "";
+      loadUsers();
     } catch (err) {
       toast(err.message, true);
+    }
+  });
+
+  $("#users-table").addEventListener("click", async (event) => {
+    const pwBtn = event.target.closest("[data-user-pw]");
+    const delBtn = event.target.closest("[data-user-del]");
+    if (pwBtn) {
+      const username = pwBtn.dataset.userPw;
+      const password = prompt(`Nouveau mot de passe pour « ${username} » (8 caractères min.) :`);
+      if (!password) return;
+      try {
+        await api(`/api/users/${encodeURIComponent(username)}/password`, { body: { password } });
+        toast("Mot de passe modifié.");
+      } catch (err) {
+        toast(err.message, true);
+      }
+    } else if (delBtn) {
+      const username = delBtn.dataset.userDel;
+      if (!confirm(`Supprimer le compte « ${username} » ?`)) return;
+      try {
+        await api(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
+        toast("Compte supprimé.");
+        loadUsers();
+      } catch (err) {
+        toast(err.message, true);
+      }
     }
   });
 

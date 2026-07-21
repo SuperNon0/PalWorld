@@ -13,7 +13,10 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 - Sauvegarde du monde forcée avant chaque arrêt/redémarrage
 
 **Panel web** (service systemd `palworld-panel`)
-- 🔐 Connexion par mot de passe (modifiable depuis le panel)
+- 🔐 **Comptes multiples** : connexion par identifiant + mot de passe ;
+  création / suppression de comptes et changement de mot de passe depuis le panel
+- 📝 **Descriptions intégrées** : chaque paramètre de `PalWorldSettings.ini`
+  est expliqué en français dans l'onglet Configuration
 - ▶ Démarrer / ■ Arrêter / ⟳ Redémarrer le serveur, plus **arrêt différé**
   avec compte à rebours annoncé aux joueurs
 - 🖥 Console : logs du serveur en temps réel (journald)

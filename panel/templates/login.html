@@ -13,7 +13,8 @@
     <div class="logo login-logo"><span class="g">pal</span><span class="i">world</span></div>
     <span class="badge">panel · administration</span>
     {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
-    <input type="password" name="password" placeholder="Mot de passe" autofocus required>
+    <input type="text" name="username" placeholder="Identifiant" autocomplete="username" autofocus required>
+    <input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" required>
     <button type="submit" class="btn primary full">Se connecter</button>
   </form>
 </body>

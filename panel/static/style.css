@@ -283,6 +283,17 @@ input::placeholder { color: var(--muted); }
   color: var(--muted);
   width: 45%;
 }
+.config-table td:first-child { line-height: 1.35; }
+.setting-desc {
+  display: block;
+  font-family: var(--font);
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 3px;
+  max-width: 42ch;
+}
 .config-table input, .config-table select { width: 100%; max-width: 340px; }
 .config-table input.changed, .config-table select.changed { border-color: var(--orange); }
 
