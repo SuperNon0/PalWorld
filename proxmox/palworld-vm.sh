@@ -216,22 +216,22 @@ msg_ok "VM démarrée."
 cat <<EOF
 
   ${YW}Identifiants (note-les) :${CL}
-    Panel (le site) — mot de passe : ${BL}$PANEL_PASSWORD${CL}
+    Panel (le site) — identifiant : ${BL}admin${CL} · mot de passe : ${BL}$PANEL_PASSWORD${CL}
     Admin du jeu    — identifiant : ${BL}admin${CL} · mot de passe : ${BL}$ADMIN_PASSWORD${CL}
 EOF
 
-# ----------------------------------------- attente de la fin de l'installation
+# --------------------------------- attente du démarrage du panel (le « site »)
 echo
-msg_info "${YW}Patiente…${CL} l'adresse du site va s'afficher automatiquement ci-dessous"
-msg_info "une fois le téléchargement terminé (SteamCMD ~8 Go, ~10 à 20 min)."
-msg_info "Ne ferme pas encore — ou fais Ctrl+C sans risque : l'installation continue dans la VM."
+msg_info "${YW}Patiente ~1 à 2 minutes${CL} : le panel démarre, puis son adresse s'affiche ci-dessous."
+msg_info "Le serveur de jeu (~8 Go) se télécharge ENSUITE en arrière-plan — tu suivras"
+msg_info "la progression directement dans le panel (onglet Console). Ctrl+C sans risque."
 IP=""
 PANEL_READY=0
-DEADLINE=$((SECONDS + 1800))   # 30 min max d'attente
+DEADLINE=$((SECONDS + 1800))   # 30 min de sécurité (le panel arrive normalement en 1-2 min)
 while [[ $SECONDS -lt $DEADLINE ]]; do
     if [[ -z $IP ]]; then
         IP=$(get_vm_ip || true)
-        [[ -n $IP ]] && msg_ok "IP de la VM détectée : $IP — patiente encore le temps que le panel démarre…"
+        [[ -n $IP ]] && msg_ok "IP de la VM détectée : $IP — le panel finit de démarrer…"
     fi
     if [[ -n $IP ]] && curl -sf -o /dev/null --max-time 3 "http://$IP:$PANEL_PORT/login"; then
         PANEL_READY=1
@@ -247,36 +247,39 @@ if [[ $PANEL_READY -eq 1 ]]; then
     cat <<EOF
 
 ${GN}============================================================${CL}
-  ${GN}Ton serveur Palworld est prêt !${CL}
+  ${GN}Ton panel est prêt — connecte-toi !${CL}
 ------------------------------------------------------------
   🌐 Panel (le site) : ${BL}http://$IP:$PANEL_PORT${CL}
-        mot de passe : ${BL}$PANEL_PASSWORD${CL}
+        identifiant : ${BL}admin${CL}   mot de passe : ${BL}$PANEL_PASSWORD${CL}
+
+  ${YW}⏳ Le serveur de jeu finit de se télécharger en arrière-plan (~8 Go).${CL}
+     Suis la progression dans l'onglet ${BL}Console${CL} du panel ; il démarrera
+     tout seul à la fin (une bannière te le signale sur le tableau de bord).
 
   🎮 Admin du jeu    : identifiant ${BL}admin${CL} · mot de passe ${BL}$ADMIN_PASSWORD${CL}
-  🎮 Adresse serveur (LAN) : ${BL}$IP:$GAME_PORT${CL}
+  🎮 Adresse serveur (LAN) : ${BL}$IP:$GAME_PORT${CL} (jouable une fois le téléchargement fini)
 
-  Accès des joueurs sans ouvrir de port : onglet « Accès / Tunnel »
-  du panel, ou   sudo /opt/palworld-src/scripts/tunnel-playit.sh
+  Accès des joueurs sans ouvrir de port : onglet « Accès / Tunnel » du panel.
 ------------------------------------------------------------
   VM $VMID · $CORES cœurs · $RAM Mo · $DISK Go
-  Accès système (secours only) : ubuntu / ${BL}$VM_PASSWORD${CL} (console Proxmox)
+  Accès système (secours) : ubuntu / ${BL}$VM_PASSWORD${CL} (console Proxmox)
 ${GN}============================================================${CL}
 EOF
 else
     cat <<EOF
 
 ${YW}============================================================${CL}
-  Installation encore en cours après 30 min (gros téléchargement).
-  Elle se termine toute seule dans la VM.
+  Le panel n'a pas encore répondu après 30 min.
+  Il démarre normalement en 1-2 min — il y a peut-être un souci.
 ------------------------------------------------------------
-  ${IP:+Panel bientôt disponible : ${BL}http://$IP:$PANEL_PORT${CL}}
+  ${IP:+Essaie quand même : ${BL}http://$IP:$PANEL_PORT${CL}}
   ${IP:-IP pas encore détectée — vérifie l'onglet Résumé de la VM $VMID dans Proxmox.}
 
-  Suivre la fin de l'installation :
+  Diagnostiquer (console de la VM) :
       qm terminal $VMID   (Entrée, login ubuntu, puis :)
       sudo tail -f /var/log/cloud-init-output.log
 
-  Identifiants — panel : ${BL}$PANEL_PASSWORD${CL} · admin : ${BL}admin / $ADMIN_PASSWORD${CL}
+  Identifiants — panel : ${BL}admin / $PANEL_PASSWORD${CL} · admin jeu : ${BL}admin / $ADMIN_PASSWORD${CL}
 ${YW}============================================================${CL}
 EOF
 fi
