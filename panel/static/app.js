@@ -4,6 +4,7 @@
 const $ = (sel) => document.querySelector(sel);
 
 let consoleSource = null;
+let tunnelSource = null;
 let configLoaded = false;
 let configMeta = {}; // clé -> { quoted: bool }
 let isAdmin = false; // renseigné par /api/status
@@ -258,6 +259,7 @@ async function loadTunnel() {
       pill.className = "pill offline";
       installBlock.classList.remove("hidden");
       manageBlock.classList.add("hidden");
+      stopTunnelStream();
       return;
     }
     installBlock.classList.add("hidden");
@@ -265,21 +267,53 @@ async function loadTunnel() {
     const active = t.active === "active";
     pill.textContent = active ? "● Actif" : "○ Arrêté";
     pill.className = "pill " + (active ? "online" : "starting");
-    const claim = $("#tunnel-claim");
-    const missing = $("#tunnel-claim-missing");
     if (t.claim_url) {
-      $("#tunnel-claim-link").href = t.claim_url;
-      $("#tunnel-claim-link").textContent = t.claim_url;
-      claim.classList.remove("hidden");
-      missing.classList.add("hidden");
+      showTunnelClaim(t.claim_url);
     } else {
-      claim.classList.add("hidden");
-      missing.classList.remove("hidden");
+      $("#tunnel-claim").classList.add("hidden");
+      $("#tunnel-claim-missing").classList.remove("hidden");
     }
-    const logs = $("#tunnel-logs");
-    if (logs) logs.textContent = t.logs && t.logs.trim() ? t.logs.trim() : "(journal vide — clique Rafraîchir)";
+    // Journal en direct (SSE) : montre le lien playit dès qu'il apparaît.
+    startTunnelStream();
   } catch (err) {
     /* onglet inactif ou panel occupé */
+  }
+}
+
+const PLAYIT_URL_RE = /https:\/\/playit\.gg\/\S+/;
+
+function showTunnelClaim(url) {
+  const clean = url.replace(/[.,);\]]+$/, "");
+  $("#tunnel-claim-link").href = clean;
+  $("#tunnel-claim-link").textContent = clean;
+  $("#tunnel-claim").classList.remove("hidden");
+  $("#tunnel-claim-missing").classList.add("hidden");
+}
+
+function startTunnelStream() {
+  if (tunnelSource) return;
+  const box = $("#tunnel-logs");
+  if (box) box.textContent = "";
+  tunnelSource = new EventSource("/api/tunnel/logs-stream");
+  tunnelSource.onmessage = (event) => {
+    const line = JSON.parse(event.data);
+    if (box) {
+      const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+      box.textContent += line + "\n";
+      const lines = box.textContent.split("\n");
+      if (lines.length > 600) box.textContent = lines.slice(-500).join("\n");
+      if (nearBottom) box.scrollTop = box.scrollHeight;
+    }
+    const m = line.match(PLAYIT_URL_RE);
+    if (m) showTunnelClaim(m[0]);
+  };
+  tunnelSource.onerror = () => { /* reconnexion auto par EventSource */ };
+}
+
+function stopTunnelStream() {
+  if (tunnelSource) {
+    tunnelSource.close();
+    tunnelSource = null;
   }
 }
 
@@ -822,6 +856,7 @@ function showTab(name) {
   if (name === "parametres" && isAdmin) loadUsers();
   if (name === "backups") loadBackups();
   if (name === "acces") loadTunnel();
+  else stopTunnelStream();
   if (name === "maintenance") loadMaintenance();
   if (name === "infos") loadInfo();
 }

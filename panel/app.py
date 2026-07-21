@@ -835,6 +835,31 @@ def api_tunnel_status():
     return jsonify(data)
 
 
+@app.get("/api/tunnel/logs-stream")
+@login_required
+def api_tunnel_logs_stream():
+    """Flux SSE du journal de l'agent playit en temps réel (lecture seule)."""
+    def stream():
+        yield f"data: {json.dumps('— journal du tunnel en direct —')}\n\n"
+        try:
+            process = subprocess.Popen(
+                ["journalctl", "-f", "-n", "100", "--no-hostname", "-o", "cat",
+                 "-u", f"{PLAYIT_SERVICE}.service"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            )
+        except OSError as exc:
+            yield f"data: {json.dumps(f'journalctl indisponible : {exc}')}\n\n"
+            return
+        try:
+            for line in process.stdout:
+                yield f"data: {json.dumps(line.rstrip())}\n\n"
+        finally:
+            process.kill()
+
+    return Response(stream(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.post("/api/tunnel/install")
 @login_required
 def api_tunnel_install():
