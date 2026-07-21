@@ -360,6 +360,18 @@ input::placeholder { color: var(--muted); }
 .steps a { color: var(--accent); }
 
 /* ---------------------------------------------------------------- maintenance */
+.banner {
+  background: rgba(232, 124, 71, 0.10);
+  border: 1px solid rgba(232, 124, 71, 0.35);
+  border-left: 3px solid var(--orange);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.banner a { color: var(--accent); }
+
 .update-state { font-size: 0.8rem; color: var(--muted); flex: 1; }
 .update-state.avail { color: var(--orange); font-weight: 500; }
 .update-state.ok { color: var(--green); }

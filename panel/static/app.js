@@ -83,6 +83,9 @@ function renderStatus(status) {
     taskPill.classList.add("hidden");
   }
 
+  const banner = $("#install-banner");
+  if (banner) banner.classList.toggle("hidden", status.server_installed !== false);
+
   renderNotifications(status.notifications);
 
   const metrics = status.metrics || {};
@@ -618,6 +621,14 @@ function showTab(name) {
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => showTab(tab.dataset.tab));
+  });
+
+  // Liens internes "aller à un onglet" (ex : bannière d'installation → Console)
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-goto]");
+    if (!link) return;
+    event.preventDefault();
+    showTab(link.dataset.goto);
   });
 
   document.querySelectorAll("[data-action]").forEach((btn) => {

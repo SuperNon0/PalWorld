@@ -95,63 +95,12 @@ chown -R palworld:palworld "$PANEL_DIR"
 chown -R root:root "$SCRIPTS_DIR"
 chmod 755 "$SCRIPTS_DIR" "$SCRIPTS_DIR"/*.sh
 
-# ------------------------------------------------ 4. serveur Palworld (SteamCMD)
-# Sur une réinstallation, on ne met jamais à jour les fichiers pendant que
-# le serveur tourne (risque de corruption).
-if systemctl is-active --quiet palworld.service 2>/dev/null; then
-    log "Serveur en cours d'exécution : arrêt le temps de la mise à jour…"
-    systemctl stop palworld.service
-fi
-
-log "Téléchargement / mise à jour du serveur Palworld (peut prendre plusieurs minutes)…"
-sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
-    +login anonymous +app_update "$APP_ID" validate +quit
-
-[[ -f "$SERVER_DIR/PalServer.sh" ]] || fail "L'installation du serveur a échoué (PalServer.sh introuvable)."
-
-# Correctif SDK Steam requis par PalServer
-SDK_DIR=$PALWORLD_HOME/.steam/sdk64
-install -d -o palworld -g palworld "$PALWORLD_HOME/.steam" "$SDK_DIR"
-STEAMCLIENT=$(find "$PALWORLD_HOME" -path "*steamcmd/linux64/steamclient.so" 2>/dev/null | head -n1)
-[[ -z $STEAMCLIENT ]] && STEAMCLIENT=$(find "$PALWORLD_HOME" -name steamclient.so -path "*linux64*" 2>/dev/null | head -n1)
-if [[ -n $STEAMCLIENT ]]; then
-    install -o palworld -g palworld "$STEAMCLIENT" "$SDK_DIR/steamclient.so"
-else
-    log "AVERTISSEMENT : steamclient.so introuvable, le serveur peut afficher des erreurs Steam."
-fi
-
-# ------------------------------------------------------- 5. configuration du jeu
-CONF_DIR=$SERVER_DIR/Pal/Saved/Config/LinuxServer
-INI=$CONF_DIR/PalWorldSettings.ini
-NEW_INI=0
-install -d -o palworld -g palworld \
-    "$SERVER_DIR/Pal" "$SERVER_DIR/Pal/Saved" "$SERVER_DIR/Pal/Saved/Config" "$CONF_DIR"
-if [[ ! -f $INI ]]; then
-    cp "$SERVER_DIR/DefaultPalWorldSettings.ini" "$INI"
-    chown palworld:palworld "$INI"
-    NEW_INI=1
-fi
-
+# -------------------------- 4. panel : configuration + services (démarré en 1er)
+# Le panel démarre AVANT le téléchargement du serveur : il est donc accessible
+# tout de suite, et sa Console affiche la progression de SteamCMD.
 [[ -n $ADMIN_PASSWORD ]] || ADMIN_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_hex(8))')
 [[ -n $PANEL_PASSWORD ]] || PANEL_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_hex(8))')
 
-log "Configuration de PalWorldSettings.ini (API REST, RCON, ports)…"
-INI_ARGS=(
-    "RESTAPIEnabled=True" "RESTAPIPort=8212"
-    "RCONEnabled=True" "RCONPort=25575"
-    "PublicPort=$GAME_PORT" "ServerPlayerMaxNum=$MAX_PLAYERS"
-)
-# Le mot de passe admin n'est écrasé que sur une première installation
-# ou si --admin-password a été fourni explicitement.
-if [[ $NEW_INI -eq 1 || $ADMIN_PASSWORD_FORCED -eq 1 ]]; then
-    INI_ARGS+=("AdminPassword=\"$ADMIN_PASSWORD\"")
-else
-    ADMIN_PASSWORD="(inchangé — voir $INI)"
-fi
-python3 "$PANEL_DIR/palworld_config.py" "$INI" set "${INI_ARGS[@]}"
-chown palworld:palworld "$INI"
-
-# ------------------------------------------------------ 6. configuration du panel
 install -d "$ETC_DIR"
 # Sur une réinstallation, le mot de passe du panel et la clé de session sont
 # conservés, sauf si --panel-password a été fourni explicitement.
@@ -192,7 +141,6 @@ PYEOF
 chown root:palworld "$ETC_DIR/config.json"
 chmod 660 "$ETC_DIR/config.json"
 
-# ------------------------------------------------------------- 7. services systemd
 log "Installation des services systemd…"
 sed "s/@GAME_PORT@/$GAME_PORT/" "$REPO_DIR/systemd/palworld.service" > /etc/systemd/system/palworld.service
 cp "$REPO_DIR/systemd/palworld-panel.service" /etc/systemd/system/palworld-panel.service
@@ -212,10 +160,78 @@ chmod 440 /etc/sudoers.d/palworld-panel
 usermod -aG systemd-journal palworld
 
 systemctl daemon-reload
-systemctl enable --now palworld.service palworld-panel.service
-# Redémarrage du panel : recharge le code et applique l'appartenance au
-# groupe systemd-journal (nécessaire pour la console)
+# Le serveur est activé mais PAS encore démarré (fichiers pas encore téléchargés).
+systemctl enable palworld.service >/dev/null 2>&1 || true
+# Le panel, lui, démarre tout de suite → accessible pendant le téléchargement.
+systemctl enable palworld-panel.service >/dev/null 2>&1 || true
 systemctl restart palworld-panel.service
+IP_HINT=$(hostname -I | awk '{print $1}')
+log "Panel accessible : http://${IP_HINT:-<IP-de-la-VM>}:$PANEL_PORT (serveur en cours de téléchargement)"
+
+# ------------------------------------------------ 5. serveur Palworld (SteamCMD)
+# Sur une réinstallation, on n'écrit jamais les fichiers pendant que le serveur
+# tourne (risque de corruption).
+if systemctl is-active --quiet palworld.service 2>/dev/null; then
+    log "Serveur en cours d'exécution : arrêt le temps de la mise à jour…"
+    systemctl stop palworld.service
+fi
+
+log "Téléchargement / mise à jour du serveur Palworld (~8 Go, plusieurs minutes)…"
+# La sortie est renvoyée vers journald (identifiant « palworld-steamcmd ») pour
+# apparaître dans la Console du panel, en plus du log d'installation.
+if command -v systemd-cat >/dev/null; then
+    sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
+        +login anonymous +app_update "$APP_ID" validate +quit 2>&1 \
+        | tee >(systemd-cat -t palworld-steamcmd)
+else
+    sudo -u palworld "$STEAMCMD" +force_install_dir "$SERVER_DIR" \
+        +login anonymous +app_update "$APP_ID" validate +quit
+fi
+
+[[ -f "$SERVER_DIR/PalServer.sh" ]] || fail "L'installation du serveur a échoué (PalServer.sh introuvable)."
+
+# Correctif SDK Steam requis par PalServer
+SDK_DIR=$PALWORLD_HOME/.steam/sdk64
+install -d -o palworld -g palworld "$PALWORLD_HOME/.steam" "$SDK_DIR"
+STEAMCLIENT=$(find "$PALWORLD_HOME" -path "*steamcmd/linux64/steamclient.so" 2>/dev/null | head -n1)
+[[ -z $STEAMCLIENT ]] && STEAMCLIENT=$(find "$PALWORLD_HOME" -name steamclient.so -path "*linux64*" 2>/dev/null | head -n1)
+if [[ -n $STEAMCLIENT ]]; then
+    install -o palworld -g palworld "$STEAMCLIENT" "$SDK_DIR/steamclient.so"
+else
+    log "AVERTISSEMENT : steamclient.so introuvable, le serveur peut afficher des erreurs Steam."
+fi
+
+# ------------------------------------------------------- 6. configuration du jeu
+CONF_DIR=$SERVER_DIR/Pal/Saved/Config/LinuxServer
+INI=$CONF_DIR/PalWorldSettings.ini
+NEW_INI=0
+install -d -o palworld -g palworld \
+    "$SERVER_DIR/Pal" "$SERVER_DIR/Pal/Saved" "$SERVER_DIR/Pal/Saved/Config" "$CONF_DIR"
+if [[ ! -f $INI ]]; then
+    cp "$SERVER_DIR/DefaultPalWorldSettings.ini" "$INI"
+    chown palworld:palworld "$INI"
+    NEW_INI=1
+fi
+
+log "Configuration de PalWorldSettings.ini (API REST, RCON, ports)…"
+INI_ARGS=(
+    "RESTAPIEnabled=True" "RESTAPIPort=8212"
+    "RCONEnabled=True" "RCONPort=25575"
+    "PublicPort=$GAME_PORT" "ServerPlayerMaxNum=$MAX_PLAYERS"
+)
+# Le mot de passe admin n'est écrasé que sur une première installation
+# ou si --admin-password a été fourni explicitement.
+if [[ $NEW_INI -eq 1 || $ADMIN_PASSWORD_FORCED -eq 1 ]]; then
+    INI_ARGS+=("AdminPassword=\"$ADMIN_PASSWORD\"")
+else
+    ADMIN_PASSWORD="(inchangé — voir $INI)"
+fi
+python3 "$PANEL_DIR/palworld_config.py" "$INI" set "${INI_ARGS[@]}"
+chown palworld:palworld "$INI"
+
+# ------------------------------------------------------- 7. démarrage du serveur
+log "Démarrage du serveur Palworld…"
+systemctl restart palworld.service
 
 # ------------------------------------------------------------------- 8. pare-feu
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then

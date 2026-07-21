@@ -466,7 +466,8 @@ def api_status():
     state = service_state()
     stats = system_stats()
     data = {"service": state, "task": _current_task, "api_ok": False,
-            "system": stats, "game_port": game_port()}
+            "system": stats, "game_port": game_port(),
+            "server_installed": (SERVER_DIR / "PalServer.sh").exists()}
     with _state_lock:
         persisted = load_state()
     data["notifications"] = build_notifications(persisted, stats)
@@ -759,8 +760,12 @@ def api_console():
         yield f"data: {json.dumps('— console connectée, en attente de logs… —')}\n\n"
         try:
             process = subprocess.Popen(
+                # Suit les 2 services + la sortie SteamCMD (taguée « palworld-steamcmd »
+                # pendant l'installation/mise à jour). Le « + » est un OU entre filtres.
                 ["journalctl", "-f", "-n", "200", "--no-hostname",
-                 "-u", f"{SERVICE}.service", "-u", "palworld-panel.service"],
+                 f"_SYSTEMD_UNIT={SERVICE}.service", "+",
+                 f"_SYSTEMD_UNIT={PANEL_SERVICE}.service", "+",
+                 "SYSLOG_IDENTIFIER=palworld-steamcmd"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
             )
         except OSError as exc:
