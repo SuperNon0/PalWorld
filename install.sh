@@ -64,7 +64,7 @@ log "Installation des paquets système…"
 dpkg --add-architecture i386
 apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    software-properties-common curl tar python3 python3-flask
+    software-properties-common curl tar git sudo python3 python3-flask
 add-apt-repository -y multiverse >/dev/null 2>&1 || true
 apt-get update -y
 

@@ -317,21 +317,29 @@ def server_latest_build():
 
 
 def panel_update_available():
-    """True si la copie locale du dépôt est en retard sur son origine GitHub."""
+    """True si la copie locale du dépôt est en retard sur son origine GitHub.
+
+    Utilise ``git ls-remote`` (lecture seule, réseau) plutôt que ``git fetch``
+    (écriture) : fonctionne même si le dépôt appartient à root (déploiement
+    Proxmox) et sans droit d'écriture. ``safe.directory`` évite l'erreur
+    « dubious ownership » quand le dépôt n'appartient pas à l'utilisateur.
+    """
     if not (SOURCE_DIR / ".git").exists():
         return False
+    git = ["git", "-c", f"safe.directory={SOURCE_DIR}", "-C", str(SOURCE_DIR)]
     try:
-        subprocess.run(["git", "-C", str(SOURCE_DIR), "fetch", "--quiet"],
-                       capture_output=True, text=True, check=False, timeout=30)
-        local = subprocess.run(["git", "-C", str(SOURCE_DIR), "rev-parse", "HEAD"],
+        local = subprocess.run(git + ["rev-parse", "HEAD"],
                                capture_output=True, text=True, check=False)
-        remote = subprocess.run(["git", "-C", str(SOURCE_DIR), "rev-parse", "@{u}"],
+        branch = subprocess.run(git + ["rev-parse", "--abbrev-ref", "HEAD"],
                                 capture_output=True, text=True, check=False)
+        ref = branch.stdout.strip() or "HEAD"
+        remote = subprocess.run(git + ["ls-remote", "origin", ref],
+                                capture_output=True, text=True, check=False, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return False
-    if local.returncode or remote.returncode:
+    if local.returncode or remote.returncode or not remote.stdout.strip():
         return False
-    return local.stdout.strip() != remote.stdout.strip()
+    return local.stdout.strip() != remote.stdout.split()[0]
 
 
 def check_for_updates():
