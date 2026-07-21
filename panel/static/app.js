@@ -86,6 +86,9 @@ function renderStatus(status) {
   const banner = $("#install-banner");
   if (banner) banner.classList.toggle("hidden", status.server_installed !== false);
 
+  const infosTab = $("#tab-btn-infos");
+  if (infosTab) infosTab.classList.toggle("hidden", !status.is_admin);
+
   renderNotifications(status.notifications);
 
   const metrics = status.metrics || {};
@@ -704,6 +707,66 @@ function renderChart(canvas, hoverX) {
   }
 }
 
+// --------------------------------------------------------------- infos (admin)
+function infoRow(label, value, opts = {}) {
+  const empty = value == null || value === "";
+  const shown = empty ? opts.empty || "—" : value;
+  const val = opts.mono && !empty ? `<code>${escapeHtml(shown)}</code>` : escapeHtml(shown);
+  const copy = opts.copyable && !empty
+    ? `<button class="btn small" data-copy="${escapeHtml(String(value))}">Copier</button>`
+    : "";
+  return `<div class="info-row"><span class="info-label">${escapeHtml(label)}</span><span class="info-val">${val}</span>${copy}</div>`;
+}
+
+async function loadInfo() {
+  const container = $("#info-content");
+  try {
+    const d = await api("/api/info");
+    const panelUrl = `http://${d.ip}:${d.panel_port}`;
+    const gameAddr = `${d.ip}:${d.game_port}`;
+    container.innerHTML = `
+      <div class="panel-block">
+        <h2>Serveur de jeu</h2>
+        ${infoRow("Nom du serveur", d.server_name)}
+        ${infoRow("Adresse à donner aux joueurs (LAN)", gameAddr, { mono: true, copyable: true })}
+        ${infoRow("Mot de passe pour rejoindre", d.server_password, { empty: "(aucun — serveur public)", mono: true, copyable: !!d.server_password })}
+        ${infoRow("Mot de passe admin (/AdminPassword en jeu, API, RCON)", d.admin_password, { mono: true, copyable: true })}
+      </div>
+      <div class="panel-block">
+        <h2>Panel (le site)</h2>
+        ${infoRow("Adresse du panel", panelUrl, { mono: true, copyable: true })}
+        <p class="hint">Les mots de passe des comptes du panel ne sont pas affichables (stockés chiffrés). Gère-les dans Configuration → Comptes du panel.</p>
+      </div>
+      <div class="panel-block">
+        <h2>Accès système (VM)</h2>
+        ${infoRow("Connexion SSH", `ssh ${d.ssh_user}@${d.ip}`, { mono: true, copyable: true })}
+        ${infoRow("Passer administrateur (root)", "sudo -i", { mono: true, copyable: true })}
+        <p class="hint">Ou via la console Proxmox (utilisateur ${escapeHtml(d.ssh_user)}).</p>
+      </div>
+      <div class="panel-block">
+        <h2>Ports</h2>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>Port</th><th>Protocole</th><th>Usage</th></tr></thead>
+          <tbody>
+            <tr><td><code>${d.game_port}</code></td><td>UDP</td><td>Serveur de jeu (à rediriger ou via tunnel)</td></tr>
+            <tr><td><code>${d.panel_port}</code></td><td>TCP</td><td>Panel web</td></tr>
+            <tr><td><code>${escapeHtml(d.rest_api_port)}</code></td><td>TCP</td><td>API REST (localhost)</td></tr>
+            <tr><td><code>${escapeHtml(d.rcon_port)}</code></td><td>TCP</td><td>RCON (localhost)</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="panel-block">
+        <h2>Chemins & commandes utiles</h2>
+        ${infoRow("Dossier du serveur", d.server_dir, { mono: true })}
+        ${infoRow("Sauvegardes", d.backup_dir, { mono: true })}
+        ${infoRow("Fichier de configuration", d.settings_file, { mono: true })}
+        ${infoRow("Voir les logs en direct", "journalctl -u palworld -f", { mono: true, copyable: true })}
+      </div>`;
+  } catch (err) {
+    container.innerHTML = `<div class="panel-block"><p class="hint">${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
 // ---------------------------------------------------------------- onglets
 function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
@@ -716,6 +779,7 @@ function showTab(name) {
   if (name === "backups") loadBackups();
   if (name === "acces") loadTunnel();
   if (name === "maintenance") loadMaintenance();
+  if (name === "infos") loadInfo();
 }
 
 // ------------------------------------------------------------------- init
@@ -876,6 +940,10 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   $("#card-addr").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
   $("#server-ip").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
+  $("#info-content").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-copy]");
+    if (btn) copyText(btn.dataset.copy);
+  });
 
   // Cloche de notifications
   $("#bell").addEventListener("click", (e) => {

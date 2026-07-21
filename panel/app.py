@@ -236,6 +236,11 @@ def save_users(users):
         json.dump(users, handle, indent=2)
 
 
+def is_admin():
+    """Le compte « admin » est le seul à voir les informations sensibles."""
+    return session.get("user") == "admin"
+
+
 def local_ip():
     """IP locale (LAN) de la machine, sans dépendance ni trafic réseau réel."""
     try:
@@ -500,7 +505,8 @@ def api_status():
     stats = system_stats()
     data = {"service": state, "task": _current_task, "api_ok": False,
             "system": stats, "game_port": game_port(),
-            "server_installed": (SERVER_DIR / "PalServer.sh").exists()}
+            "server_installed": (SERVER_DIR / "PalServer.sh").exists(),
+            "is_admin": is_admin()}
     with _state_lock:
         persisted = load_state()
     data["notifications"] = build_notifications(persisted, stats)
@@ -514,6 +520,36 @@ def api_status():
         except APIError:
             pass  # serveur en cours de démarrage ou API désactivée
     return jsonify(data)
+
+
+@app.get("/api/info")
+@login_required
+def api_info():
+    if not is_admin():
+        return jsonify(error="Réservé au compte admin."), 403
+    try:
+        settings = palworld_config.read_settings(SETTINGS_FILE)
+    except OSError:
+        settings = {}
+
+    def value(key, default=""):
+        return palworld_config.unquote(settings.get(key, default))
+
+    return jsonify(
+        ip=local_ip(),
+        game_port=game_port(),
+        panel_port=int(CONFIG.get("panel_port", 8080)),
+        server_name=value("ServerName"),
+        server_password=value("ServerPassword"),
+        admin_password=value("AdminPassword"),
+        rest_api_port=value("RESTAPIPort", "8212"),
+        rcon_port=value("RCONPort", "25575"),
+        server_dir=str(SERVER_DIR),
+        backup_dir=str(BACKUP_DIR),
+        settings_file=str(SETTINGS_FILE),
+        source_dir=str(SOURCE_DIR),
+        ssh_user="ubuntu",
+    )
 
 
 @app.post("/api/action")

@@ -44,6 +44,7 @@
     <button class="tab" data-tab="backups">Sauvegardes</button>
     <button class="tab" data-tab="acces">Accès / Tunnel</button>
     <button class="tab" data-tab="maintenance">Maintenance</button>
+    <button class="tab hidden" id="tab-btn-infos" data-tab="infos">Infos</button>
   </nav>
 
   <main>
@@ -246,6 +247,12 @@
           <button class="btn primary" data-action="update-panel">Mettre à jour le panel</button>
         </div>
       </div>
+    </section>
+
+    <section id="tab-infos" class="tab-page">
+      <div class="section-header"><h2>Infos & accès</h2></div>
+      <p class="hint">🔒 Ces informations (dont les mots de passe) ne sont visibles que par le compte <b>admin</b>.</p>
+      <div id="info-content"></div>
     </section>
   </main>
 

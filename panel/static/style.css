@@ -387,6 +387,20 @@ input::placeholder { color: var(--muted); }
 .update-state.avail { color: var(--orange); font-weight: 500; }
 .update-state.ok { color: var(--green); }
 
+/* --------------------------------------------------------------- page infos */
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--muted); font-size: 0.78rem; flex: 1; min-width: 180px; }
+.info-val { color: var(--text); font-size: 0.85rem; word-break: break-all; }
+.info-val code { color: var(--accent); }
+
 /* -------------------------------------------------------------- adresse / IP */
 .server-ip {
   font-family: var(--font-mono);

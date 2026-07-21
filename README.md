@@ -17,6 +17,9 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
   création / suppression de comptes et changement de mot de passe depuis le panel
 - 📝 **Descriptions intégrées** : chaque paramètre de `PalWorldSettings.ini`
   est expliqué en français dans l'onglet Configuration
+- ℹ️ **Page Infos (compte admin uniquement)** : récapitule tout — adresse du
+  serveur et du panel, mot de passe admin du jeu, accès SSH, ports, chemins
+  et commandes utiles
 - ▶ Démarrer / ■ Arrêter / ⟳ Redémarrer le serveur, plus **arrêt différé**
   avec compte à rebours annoncé aux joueurs
 - 🖥 Console : logs du serveur en temps réel (journald)
