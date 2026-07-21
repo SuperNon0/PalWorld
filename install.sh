@@ -35,6 +35,8 @@ PANEL_PASSWORD=""
 PANEL_PASSWORD_FORCED=0
 ADMIN_PASSWORD=""
 ADMIN_PASSWORD_FORCED=0
+VM_USER="ubuntu"
+VM_PASSWORD=""
 
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -50,6 +52,8 @@ while [[ $# -gt 0 ]]; do
         --panel-password) PANEL_PASSWORD=$2; PANEL_PASSWORD_FORCED=1; shift 2 ;;
         --admin-password) ADMIN_PASSWORD=$2; ADMIN_PASSWORD_FORCED=1; shift 2 ;;
         --max-players)    MAX_PLAYERS=$2; shift 2 ;;
+        --vm-user)        VM_USER=$2; shift 2 ;;
+        --vm-password)    VM_PASSWORD=$2; shift 2 ;;
         -h|--help)        usage; exit 0 ;;
         *)                fail "Option inconnue : $1 (voir --help)" ;;
     esac
@@ -155,6 +159,21 @@ PYEOF
 # 660 : le panel (groupe palworld) peut changer son propre mot de passe
 chown root:palworld "$ETC_DIR/config.json"
 chmod 660 "$ETC_DIR/config.json"
+
+# Identifiants d'accès système (VM) pour la page Infos du panel (admin only).
+# Écrits seulement si fournis (déploiement Proxmox) ; conservés sur réinstall.
+if [[ -n $VM_PASSWORD ]] || [[ ! -f $PALWORLD_HOME/panel-credentials.json ]]; then
+    VM_USER="$VM_USER" VM_PASSWORD="$VM_PASSWORD" PALWORLD_HOME="$PALWORLD_HOME" \
+    python3 - <<'PYEOF'
+import json, os
+path = os.environ["PALWORLD_HOME"] + "/panel-credentials.json"
+json.dump({"vm_user": os.environ.get("VM_USER", "ubuntu"),
+           "vm_password": os.environ.get("VM_PASSWORD", "")},
+          open(path, "w"), indent=2)
+PYEOF
+    chown root:palworld "$PALWORLD_HOME/panel-credentials.json"
+    chmod 640 "$PALWORLD_HOME/panel-credentials.json"
+fi
 
 log "Installation des services systemd…"
 sed "s/@GAME_PORT@/$GAME_PORT/" "$REPO_DIR/systemd/palworld.service" > /etc/systemd/system/palworld.service

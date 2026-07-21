@@ -742,10 +742,12 @@ async function loadInfo() {
         <p class="hint">Les mots de passe des comptes du panel ne sont pas affichables (stockés chiffrés). Gère-les dans Configuration → Comptes du panel.</p>
       </div>
       <div class="panel-block">
-        <h2>Accès système (VM)</h2>
+        <h2>Accès système (VM) — secours</h2>
+        ${infoRow("Utilisateur", d.ssh_user, { mono: true })}
+        ${infoRow("Mot de passe système", d.vm_password, { empty: "(défini par toi / clé SSH)", mono: true, copyable: !!d.vm_password })}
         ${infoRow("Connexion SSH", `ssh ${d.ssh_user}@${d.ip}`, { mono: true, copyable: true })}
         ${infoRow("Passer administrateur (root)", "sudo -i", { mono: true, copyable: true })}
-        <p class="hint">Ou via la console Proxmox (utilisateur ${escapeHtml(d.ssh_user)}).</p>
+        <p class="hint">Pour bricoler la VM en direct (console Proxmox ou SSH). Au quotidien, tu n'en as pas besoin — le panel fait tout.</p>
       </div>
       <div class="panel-block">
         <h2>Ports</h2>

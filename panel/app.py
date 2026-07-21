@@ -93,6 +93,8 @@ _users_lock = threading.Lock()
 # Comptes du panel : {identifiant: hash}. Fichier inscriptible par palworld.
 USERS_FILE = Path(CONFIG.get("users_file", str(STATE_FILE.parent / "panel-users.json")))
 VALID_USERNAME = re.compile(r"^[A-Za-z0-9_.\-]{3,32}$")
+# Identifiants système (accès VM), écrits à l'installation, lus par la page Infos.
+CREDENTIALS_FILE = Path(CONFIG.get("credentials_file", str(STATE_FILE.parent / "panel-credentials.json")))
 HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minute
 
 
@@ -553,6 +555,14 @@ def api_info():
     def value(key, default=""):
         return palworld_config.unquote(settings.get(key, default))
 
+    # Identifiants système (accès VM) écrits à l'installation, si présents.
+    creds = {}
+    try:
+        with open(CREDENTIALS_FILE, encoding="utf-8") as handle:
+            creds = json.load(handle)
+    except (OSError, ValueError):
+        pass
+
     return jsonify(
         ip=local_ip(),
         game_port=game_port(),
@@ -566,7 +576,8 @@ def api_info():
         backup_dir=str(BACKUP_DIR),
         settings_file=str(SETTINGS_FILE),
         source_dir=str(SOURCE_DIR),
-        ssh_user="ubuntu",
+        ssh_user=creds.get("vm_user") or "ubuntu",
+        vm_password=creds.get("vm_password", ""),
     )
 
 

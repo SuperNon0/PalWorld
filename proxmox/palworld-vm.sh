@@ -178,7 +178,7 @@ runcmd:
   - export DEBIAN_FRONTEND=noninteractive
   - systemctl enable --now qemu-guest-agent || true
   - git clone --branch $PW_BRANCH $PW_REPO /opt/palworld-src
-  - bash /opt/palworld-src/install.sh --panel-password '$PANEL_PASSWORD' --admin-password '$ADMIN_PASSWORD' --max-players $MAX_PLAYERS --game-port $GAME_PORT --panel-port $PANEL_PORT
+  - bash /opt/palworld-src/install.sh --panel-password '$PANEL_PASSWORD' --admin-password '$ADMIN_PASSWORD' --max-players $MAX_PLAYERS --game-port $GAME_PORT --panel-port $PANEL_PORT --vm-user ubuntu --vm-password '$VM_PASSWORD'
 EOF
 chmod 600 "$SNIPPET_FILE"
 msg_ok "cloud-init prêt."
