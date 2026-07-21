@@ -15,6 +15,10 @@
 #      VMID=210 CORES=6 RAM=32768 DISK=60 STORAGE=local-lvm BRIDGE=vmbr0 \
 #      HOSTNAME=palworld MAX_PLAYERS=32 bash palworld-vm.sh
 #
+#  Accès SSH par clé (recommandé) — sinon la clé de l'hôte Proxmox est reprise :
+#      SSH_KEY="ssh-ed25519 AAAA... toi@pc" bash palworld-vm.sh
+#      SSH_KEY_FILE=/root/.ssh/id_ed25519.pub bash palworld-vm.sh
+#
 #  Inspiré des scripts community-scripts.org (Proxmox VE Helper-Scripts).
 # ============================================================================
 set -euo pipefail
@@ -131,6 +135,24 @@ if ! pvesm status -content snippets 2>/dev/null | grep -qw "$SNIPPET_STORAGE"; t
         || msg_error "Impossible d'activer les snippets automatiquement — active « Snippets » sur le stockage $SNIPPET_STORAGE dans l'interface Proxmox si l'étape cloud-init échoue."
 fi
 
+# Clé SSH (optionnelle) : accès sans mot de passe pour l'utilisateur ubuntu.
+# Priorité : $SSH_KEY (collée), puis $SSH_KEY_FILE, puis les clés déjà
+# autorisées sur l'hôte Proxmox (/root/.ssh/authorized_keys) — pratique si tu
+# accèdes déjà à Proxmox par clé, la VM la réutilise automatiquement.
+SSH_KEY="${SSH_KEY:-}"
+if [[ -z $SSH_KEY && -n ${SSH_KEY_FILE:-} && -f ${SSH_KEY_FILE:-} ]]; then
+    SSH_KEY=$(cat "$SSH_KEY_FILE")
+fi
+if [[ -z $SSH_KEY && -f /root/.ssh/authorized_keys ]]; then
+    SSH_KEY=$(grep -m1 -E '^(ssh-|ecdsa-|sk-)' /root/.ssh/authorized_keys || true)
+    [[ -n $SSH_KEY ]] && msg_ok "Clé SSH reprise depuis /root/.ssh/authorized_keys de l'hôte."
+fi
+SSH_KEY_YAML=""
+if [[ -n $SSH_KEY ]]; then
+    SSH_KEY_YAML=$'\n    ssh_authorized_keys:\n      - '"$SSH_KEY"
+    msg_ok "Accès SSH par clé activé pour l'utilisateur ubuntu."
+fi
+
 SNIPPET_FILE="$SNIPPET_DIR/palworld-vm-$VMID.yaml"
 msg_info "Écriture de la configuration cloud-init (installation au 1er démarrage)…"
 cat > "$SNIPPET_FILE" <<EOF
@@ -143,7 +165,7 @@ users:
     groups: [sudo]
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
-    lock_passwd: false
+    lock_passwd: false${SSH_KEY_YAML}
 password: $VM_PASSWORD
 chpasswd:
   expire: false
