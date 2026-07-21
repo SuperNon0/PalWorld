@@ -77,6 +77,9 @@ STATE_DEFAULTS = {
     "server_latest_build": "",
     "server_update_available": False,
     "panel_update_available": False,
+    # Mot de passe système (VM) affiché sur la page Infos, modifiable par l'admin
+    "vm_user": "",
+    "vm_password": "",
 }
 
 app = Flask(__name__)
@@ -95,9 +98,6 @@ USERS_FILE = Path(CONFIG.get("users_file", str(STATE_FILE.parent / "panel-users.
 VALID_USERNAME = re.compile(r"^[A-Za-z0-9_.\-]{3,32}$")
 # Identifiants système (accès VM), écrits à l'installation, lus par la page Infos.
 CREDENTIALS_FILE = Path(CONFIG.get("credentials_file", str(STATE_FILE.parent / "panel-credentials.json")))
-# Terminal admin : préfixe d'exécution des commandes (root via sudo par défaut).
-# ⚠️ Donne un accès root complet au compte admin du panel.
-TERMINAL_PREFIX = CONFIG.get("terminal_prefix", ["sudo", "-n", "/usr/bin/bash", "-c"])
 HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minute
 
 
@@ -135,53 +135,6 @@ def systemctl(action, unit=SERVICE):
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"systemctl {action} a échoué")
-
-
-def unit_active(unit):
-    try:
-        result = subprocess.run(
-            ["systemctl", "is-active", f"{unit}.service"],
-            capture_output=True, text=True, check=False,
-        )
-    except OSError:
-        return "unknown"
-    return result.stdout.strip() or "unknown"
-
-
-def unit_installed(unit):
-    try:
-        result = subprocess.run(
-            ["systemctl", "list-unit-files", f"{unit}.service", "--no-legend"],
-            capture_output=True, text=True, check=False,
-        )
-    except OSError:
-        return False
-    return f"{unit}.service" in result.stdout
-
-
-def playit_logs(lines=200):
-    """Dernières lignes du journal de l'agent playit (pour l'onglet Tunnel)."""
-    try:
-        result = subprocess.run(
-            ["journalctl", "-u", f"{PLAYIT_SERVICE}.service", "-n", str(lines),
-             "--no-pager", "--no-hostname", "-o", "cat"],
-            capture_output=True, text=True, check=False,
-        )
-    except OSError:
-        return ""
-    return result.stdout
-
-
-def playit_claim_url(logs=None):
-    """Extrait le lien d'association playit.gg des logs du service (le plus récent)."""
-    text = logs if logs is not None else playit_logs(1000)
-    # Priorité aux liens de claim/setup, sinon n'importe quel lien playit.gg.
-    urls = re.findall(r"https://playit\.gg/\S+", text)
-    urls = [u.rstrip(".,);]") for u in urls]
-    for url in reversed(urls):
-        if any(key in url for key in ("claim", "setup", "mc-tunnel", "agent")):
-            return url
-    return urls[-1] if urls else None
 
 
 def run_script_async(task_name, script_path, args=(), extra_env=None, sudo=False):
@@ -570,13 +523,16 @@ def api_info():
     def value(key, default=""):
         return palworld_config.unquote(settings.get(key, default))
 
-    # Identifiants système (accès VM) écrits à l'installation, si présents.
+    # Identifiants système (accès VM) : priorité à l'état (modifiable par l'admin
+    # dans Paramètres), puis au fichier écrit à l'installation.
     creds = {}
     try:
         with open(CREDENTIALS_FILE, encoding="utf-8") as handle:
             creds = json.load(handle)
     except (OSError, ValueError):
         pass
+    with _state_lock:
+        state = load_state()
 
     return jsonify(
         ip=local_ip(),
@@ -591,9 +547,31 @@ def api_info():
         backup_dir=str(BACKUP_DIR),
         settings_file=str(SETTINGS_FILE),
         source_dir=str(SOURCE_DIR),
-        ssh_user=creds.get("vm_user") or "ubuntu",
-        vm_password=creds.get("vm_password", ""),
+        ssh_user=state.get("vm_user") or creds.get("vm_user") or "ubuntu",
+        vm_password=state.get("vm_password") or creds.get("vm_password", ""),
     )
+
+
+@app.post("/api/credentials")
+@admin_required
+def api_credentials_set():
+    """Met à jour le mot de passe système (VM) affiché sur la page Infos.
+
+    Le panel ne peut pas lire le mot de passe système (chiffré) : c'est un champ
+    que l'admin tient à jour quand il change le mot de passe de la VM.
+    """
+    data = request.get_json(silent=True) or {}
+    with _state_lock:
+        state = load_state()
+        if "vm_user" in data:
+            state["vm_user"] = str(data.get("vm_user", "")).strip()
+        if "vm_password" in data:
+            state["vm_password"] = str(data.get("vm_password", ""))
+        try:
+            save_state(state)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
 
 
 @app.post("/api/action")
@@ -821,101 +799,6 @@ def api_scheduler_set():
         except OSError as exc:
             return jsonify(error=f"Écriture de l'état impossible : {exc}"), 500
     return jsonify(ok=True)
-
-
-@app.get("/api/tunnel")
-@login_required
-def api_tunnel_status():
-    installed = unit_installed(PLAYIT_SERVICE)
-    data = {"installed": installed, "task": _current_task,
-            "active": unit_active(PLAYIT_SERVICE) if installed else "inactive"}
-    if installed:
-        logs = playit_logs(60)
-        data["logs"] = logs
-        url = playit_claim_url(playit_logs(1000))
-        if url:
-            data["claim_url"] = url
-    return jsonify(data)
-
-
-@app.get("/api/tunnel/logs-stream")
-@login_required
-def api_tunnel_logs_stream():
-    """Flux SSE du journal de l'agent playit en temps réel (lecture seule)."""
-    def stream():
-        yield f"data: {json.dumps('— journal du tunnel en direct —')}\n\n"
-        try:
-            process = subprocess.Popen(
-                ["journalctl", "-f", "-n", "100", "--no-hostname", "-o", "cat",
-                 "-u", f"{PLAYIT_SERVICE}.service"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
-            )
-        except OSError as exc:
-            yield f"data: {json.dumps(f'journalctl indisponible : {exc}')}\n\n"
-            return
-        try:
-            for line in process.stdout:
-                yield f"data: {json.dumps(line.rstrip())}\n\n"
-        finally:
-            process.kill()
-
-    return Response(stream(), mimetype="text/event-stream",
-                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
-
-@app.post("/api/tunnel/install")
-@login_required
-def api_tunnel_install():
-    if not run_script_async("tunnel", SCRIPTS_DIR / "tunnel-playit.sh", sudo=True):
-        return jsonify(error="Une tâche est déjà en cours."), 409
-    return jsonify(ok=True)
-
-
-@app.post("/api/tunnel/<action>")
-@login_required
-def api_tunnel_action(action):
-    if action not in ("start", "stop", "restart"):
-        return jsonify(error="Action inconnue."), 400
-    if not unit_installed(PLAYIT_SERVICE):
-        return jsonify(error="Le tunnel n'est pas installé."), 400
-    try:
-        systemctl(action, PLAYIT_SERVICE)
-    except RuntimeError as exc:
-        return jsonify(error=str(exc)), 500
-    return jsonify(ok=True)
-
-
-@app.post("/api/terminal/run")
-@admin_required
-def api_terminal_run():
-    """Exécute une commande shell (root) et renvoie la sortie en flux.
-
-    ⚠️ Réservé au compte admin. Donne un accès root complet à la machine.
-    """
-    command = str((request.get_json(silent=True) or {}).get("command", "")).strip()
-    if not command:
-        return jsonify(error="Commande vide."), 400
-
-    def stream():
-        try:
-            process = subprocess.Popen(
-                list(TERMINAL_PREFIX) + [command],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,
-            )
-        except OSError as exc:
-            yield f"[erreur de lancement] {exc}\n"
-            return
-        try:
-            for line in process.stdout:
-                yield line
-        finally:
-            process.stdout.close()
-            code = process.wait()
-            yield f"\n[commande terminée — code de sortie {code}]\n"
-
-    return Response(stream(), mimetype="text/plain; charset=utf-8",
-                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/check-updates")

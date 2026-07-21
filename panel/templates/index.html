@@ -46,7 +46,6 @@
     <button class="tab" data-tab="maintenance">Maintenance</button>
     <button class="tab hidden" id="tab-btn-parametres" data-tab="parametres">Paramètres</button>
     <button class="tab hidden" id="tab-btn-infos" data-tab="infos">Infos</button>
-    <button class="tab hidden" id="tab-btn-terminal" data-tab="terminal">Terminal</button>
   </nav>
 
   <main>
@@ -174,58 +173,34 @@
     </section>
 
     <section id="tab-acces" class="tab-page">
-      <div class="section-header">
-        <h2>Accès des joueurs — tunnel playit.gg</h2>
-        <span id="tunnel-pill" class="pill offline">—</span>
-      </div>
-      <p class="hint">Permet aux joueurs de rejoindre le serveur <b>sans ouvrir de port</b> sur ta box. L'agent playit.gg se connecte en sortie et relaie le trafic.</p>
+      <div class="section-header"><h2>Accès des joueurs — tunnel playit.gg</h2></div>
+      <p class="hint">Permet aux joueurs de rejoindre le serveur <b>sans ouvrir de port</b> sur ta box. Tout se fait dans un <b>terminal de la VM</b> (console Proxmox ou SSH depuis ton PC : <code>ssh ubuntu@…</code>).</p>
 
-      <div class="panel-block" id="tunnel-install-block">
-        <h2>1 · Installer le tunnel</h2>
-        <p class="hint">Installe l'agent playit.gg sur cette machine (action unique, exécutée en root).</p>
-        <button class="btn primary" id="tunnel-install">Installer le tunnel playit.gg</button>
+      <div class="panel-block">
+        <h2>1 · Installer et associer l'agent</h2>
+        <p class="hint">Lance cette commande dans le terminal de la VM. Elle installe l'agent et affiche un <b>lien</b> <code>https://playit.gg/…</code> : ouvre-le dans ton navigateur pour relier l'agent à ton compte playit.gg.</p>
+        <div class="cmd-row"><code>curl -fsSL https://packages.playit.gg/install.sh | bash</code><button class="btn small" data-copy="curl -fsSL https://packages.playit.gg/install.sh | bash">Copier</button></div>
       </div>
 
-      <div class="panel-block hidden" id="tunnel-manage-block">
-        <h2>Contrôle du tunnel</h2>
-        <div class="auto-row">
-          <button class="btn success" id="tunnel-start">Démarrer</button>
-          <button class="btn danger" id="tunnel-stop">Arrêter</button>
-          <button class="btn" id="tunnel-restart">Redémarrer</button>
-        </div>
+      <div class="panel-block">
+        <h2>2 · Créer le tunnel sur playit.gg</h2>
+        <p class="hint">Une fois connecté sur <a href="https://playit.gg" target="_blank" rel="noopener">playit.gg</a>, crée un tunnel :</p>
+        <ul class="steps-list">
+          <li>Type : <b>Palworld</b> (ou « UDP » si absent)</li>
+          <li>Port local : <b>8211</b> · Adresse locale : <code>127.0.0.1</code></li>
+        </ul>
+        <p class="hint">playit.gg te donne alors une adresse <code>xxxxx.playit.gg:PORT</code> à donner à tes joueurs (Palworld → Rejoindre par IP).</p>
+      </div>
 
-        <div id="tunnel-claim" class="callout hidden">
-          <b>2 · Associe cette machine à ton compte playit.gg :</b><br>
-          <a id="tunnel-claim-link" href="#" target="_blank" rel="noopener">Ouvrir le lien d'association →</a>
-        </div>
-
-        <div id="tunnel-claim-missing" class="callout warn hidden">
-          <b>2 · Lien d'association pas encore détecté ?</b><br>
-          Le nouvel agent playit affiche souvent le lien uniquement dans un
-          <b>terminal</b>. Ouvre la <b>console de la VM</b> (ou SSH depuis ton PC)
-          et lance la commande officielle playit :
-          <br><code>curl -fsSL https://packages.playit.gg/install.sh | bash</code>
-          <br>Le lien <code>https://playit.gg/…</code> s'affiche alors dans le
-          terminal : ouvre-le dans ton navigateur pour relier l'agent à ton compte.
-          <br>Ou connecte-toi sur
-          <a href="https://playit.gg" target="_blank" rel="noopener">playit.gg</a> →
-          <b>Agents</b> : ton agent (déjà actif) peut y être relié directement.
-        </div>
-
-        <div class="section-header" style="margin-top:16px">
-          <h2 style="flex:1">Journal du tunnel <span class="live-dot" title="En direct"></span> <span class="muted">en direct</span></h2>
-          <button class="btn ghost small" id="tunnel-refresh">Recharger le statut</button>
-        </div>
-        <pre id="tunnel-logs" class="tunnel-logs">— connexion au journal… —</pre>
-
-        <div class="steps">
-          <p><b>3 · Sur <a href="https://playit.gg" target="_blank" rel="noopener">playit.gg</a></b>, crée un tunnel :</p>
-          <ul>
-            <li>Type : <b>Palworld</b> (ou « UDP » si absent)</li>
-            <li>Port local : <b>8211</b> — Adresse : <code>127.0.0.1</code></li>
-          </ul>
-          <p><b>4 ·</b> playit.gg te donne une adresse <code>xxxxx.playit.gg:PORT</code> : donne-la à tes joueurs (Palworld → Rejoindre par IP).</p>
-        </div>
+      <div class="panel-block">
+        <h2>Commandes utiles (terminal de la VM)</h2>
+        <div class="cmd-row"><span class="cmd-label">État de l'agent</span><code>sudo systemctl status playit</code><button class="btn small" data-copy="sudo systemctl status playit">Copier</button></div>
+        <div class="cmd-row"><span class="cmd-label">Logs en direct</span><code>sudo journalctl -u playit -f</code><button class="btn small" data-copy="sudo journalctl -u playit -f">Copier</button></div>
+        <div class="cmd-row"><span class="cmd-label">Démarrer</span><code>sudo systemctl start playit</code><button class="btn small" data-copy="sudo systemctl start playit">Copier</button></div>
+        <div class="cmd-row"><span class="cmd-label">Arrêter</span><code>sudo systemctl stop playit</code><button class="btn small" data-copy="sudo systemctl stop playit">Copier</button></div>
+        <div class="cmd-row"><span class="cmd-label">Redémarrer</span><code>sudo systemctl restart playit</code><button class="btn small" data-copy="sudo systemctl restart playit">Copier</button></div>
+        <div class="cmd-row"><span class="cmd-label">Ré-associer</span><code>curl -fsSL https://packages.playit.gg/install.sh | bash</code><button class="btn small" data-copy="curl -fsSL https://packages.playit.gg/install.sh | bash">Copier</button></div>
+        <div class="cmd-row"><span class="cmd-label">Désinstaller</span><code>sudo apt remove -y playit</code><button class="btn small" data-copy="sudo apt remove -y playit">Copier</button></div>
       </div>
     </section>
 
@@ -273,31 +248,15 @@
           <button class="btn primary" id="user-create">Créer le compte</button>
         </div>
       </div>
-    </section>
-
-    <section id="tab-terminal" class="tab-page">
-      <div class="section-header"><h2>Terminal (root)</h2></div>
-      <div class="callout warn">
-        ⚠️ <b>Attention</b> : ce terminal exécute les commandes <b>en root</b> sur la VM.
-        N'exécute que des commandes que tu comprends. Réservé au compte admin.
-      </div>
 
       <div class="panel-block">
-        <h2>Associer le tunnel playit</h2>
-        <p class="hint">Commande officielle playit (installe l'agent et affiche le lien d'association) :</p>
+        <h2>Mot de passe système (VM)</h2>
+        <p class="hint">Le panel ne peut pas lire le mot de passe système (chiffré). Si tu le changes sur la VM, mets-le ici pour qu'il reste à jour sur la page <b>Infos</b>.</p>
         <div class="auto-row">
-          <code class="grow" id="playit-cmd">curl -fsSL https://packages.playit.gg/install.sh | bash</code>
-          <button class="btn small" id="term-fill">Mettre dans le terminal</button>
+          <input type="text" id="vmpw-user" placeholder="Utilisateur (ex : ubuntu)" autocomplete="off" style="max-width:220px">
+          <input type="text" id="vmpw-pass" class="grow" placeholder="Mot de passe système actuel" autocomplete="off">
+          <button class="btn primary" id="vmpw-save">Enregistrer</button>
         </div>
-      </div>
-
-      <div class="panel-block">
-        <div class="auto-row">
-          <input type="text" id="term-input" class="grow" placeholder="Commande à exécuter (ex : ls -la)" autocomplete="off" spellcheck="false">
-          <button class="btn primary" id="term-run">Exécuter</button>
-          <button class="btn ghost" id="term-clear">Vider</button>
-        </div>
-        <pre id="term-output" class="tunnel-logs" style="max-height:420px">$ _</pre>
       </div>
     </section>
 

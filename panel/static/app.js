@@ -4,7 +4,6 @@
 const $ = (sel) => document.querySelector(sel);
 
 let consoleSource = null;
-let tunnelSource = null;
 let configLoaded = false;
 let configMeta = {}; // clé -> { quoted: bool }
 let isAdmin = false; // renseigné par /api/status
@@ -127,8 +126,6 @@ function renderStatus(status) {
   if (infosTab) infosTab.classList.toggle("hidden", !isAdmin);
   const paramTab = $("#tab-btn-parametres");
   if (paramTab) paramTab.classList.toggle("hidden", !isAdmin);
-  const termTab = $("#tab-btn-terminal");
-  if (termTab) termTab.classList.toggle("hidden", !isAdmin);
 
   renderNotifications(status.notifications);
 
@@ -249,139 +246,25 @@ async function doAction(action) {
   }
 }
 
-// --------------------------------------------------------------- tunnel playit
-async function loadTunnel() {
+// -------------------------------- mot de passe système (VM) — page Paramètres
+async function loadVmCreds() {
   try {
-    const t = await api("/api/tunnel");
-    const pill = $("#tunnel-pill");
-    const installBlock = $("#tunnel-install-block");
-    const manageBlock = $("#tunnel-manage-block");
-    if (!t.installed) {
-      pill.textContent = "Non installé";
-      pill.className = "pill offline";
-      installBlock.classList.remove("hidden");
-      manageBlock.classList.add("hidden");
-      stopTunnelStream();
-      return;
-    }
-    installBlock.classList.add("hidden");
-    manageBlock.classList.remove("hidden");
-    const active = t.active === "active";
-    pill.textContent = active ? "● Actif" : "○ Arrêté";
-    pill.className = "pill " + (active ? "online" : "starting");
-    if (t.claim_url) {
-      showTunnelClaim(t.claim_url);
-    } else {
-      $("#tunnel-claim").classList.add("hidden");
-      $("#tunnel-claim-missing").classList.remove("hidden");
-    }
-    // Journal en direct (SSE) : montre le lien playit dès qu'il apparaît.
-    startTunnelStream();
+    const d = await api("/api/info");
+    $("#vmpw-user").value = d.ssh_user || "ubuntu";
+    $("#vmpw-pass").value = d.vm_password || "";
   } catch (err) {
-    /* onglet inactif ou panel occupé */
+    /* silencieux */
   }
 }
 
-const PLAYIT_URL_RE = /https:\/\/playit\.gg\/\S+/;
-
-function showTunnelClaim(url) {
-  const clean = url.replace(/[.,);\]]+$/, "");
-  $("#tunnel-claim-link").href = clean;
-  $("#tunnel-claim-link").textContent = clean;
-  $("#tunnel-claim").classList.remove("hidden");
-  $("#tunnel-claim-missing").classList.add("hidden");
-}
-
-function startTunnelStream() {
-  if (tunnelSource) return;
-  const box = $("#tunnel-logs");
-  if (box) box.textContent = "";
-  tunnelSource = new EventSource("/api/tunnel/logs-stream");
-  tunnelSource.onmessage = (event) => {
-    const line = JSON.parse(event.data);
-    if (box) {
-      const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-      box.textContent += line + "\n";
-      const lines = box.textContent.split("\n");
-      if (lines.length > 600) box.textContent = lines.slice(-500).join("\n");
-      if (nearBottom) box.scrollTop = box.scrollHeight;
-    }
-    const m = line.match(PLAYIT_URL_RE);
-    if (m) showTunnelClaim(m[0]);
-  };
-  tunnelSource.onerror = () => { /* reconnexion auto par EventSource */ };
-}
-
-function stopTunnelStream() {
-  if (tunnelSource) {
-    tunnelSource.close();
-    tunnelSource = null;
-  }
-}
-
-async function tunnelInstall() {
-  if (!confirm("Installer l'agent playit.gg sur cette machine ? (installation en root, une seule fois)")) return;
+async function saveVmPassword() {
   try {
-    await api("/api/tunnel/install", { method: "POST" });
-    toast("Installation du tunnel lancée (30 s à 1 min)…");
-    setTimeout(loadTunnel, 5000);
-    setTimeout(loadTunnel, 20000);
-  } catch (err) {
-    toast(err.message, true);
-  }
-}
-
-async function tunnelAction(action) {
-  try {
-    await api(`/api/tunnel/${action}`, { method: "POST" });
-    toast("Tunnel : " + action);
-    setTimeout(loadTunnel, 1200);
-  } catch (err) {
-    toast(err.message, true);
-  }
-}
-
-// ------------------------------------------------------------ terminal (admin)
-let termRunning = false;
-
-async function runCommand() {
-  if (termRunning) return;
-  const input = $("#term-input");
-  const command = input.value.trim();
-  if (!command) return;
-  const out = $("#term-output");
-  out.textContent += `\n$ ${command}\n`;
-  out.scrollTop = out.scrollHeight;
-  termRunning = true;
-  $("#term-run").disabled = true;
-  try {
-    const res = await fetch("/api/terminal/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ command }),
+    await api("/api/credentials", {
+      body: { vm_user: $("#vmpw-user").value.trim(), vm_password: $("#vmpw-pass").value },
     });
-    if (res.status === 401) { window.location = "/login"; return; }
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      out.textContent += (d.error || `Erreur ${res.status}`) + "\n";
-      return;
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const near = out.scrollHeight - out.scrollTop - out.clientHeight < 60;
-      out.textContent += decoder.decode(value, { stream: true });
-      if (near) out.scrollTop = out.scrollHeight;
-    }
+    toast("Mot de passe système mis à jour (visible dans Infos).");
   } catch (err) {
-    out.textContent += "\n[interrompu : " + err.message + "]\n";
-  } finally {
-    termRunning = false;
-    $("#term-run").disabled = false;
-    input.value = "";
-    input.focus();
+    toast(err.message, true);
   }
 }
 
@@ -899,10 +782,8 @@ function showTab(name) {
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
-  if (name === "parametres" && isAdmin) loadUsers();
+  if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); }
   if (name === "backups") loadBackups();
-  if (name === "acces") loadTunnel();
-  else stopTunnelStream();
   if (name === "maintenance") loadMaintenance();
   if (name === "infos") loadInfo();
 }
@@ -1045,32 +926,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("#scheduler-save").addEventListener("click", saveScheduler);
 
-  // Tunnel playit.gg
-  $("#tunnel-install").addEventListener("click", tunnelInstall);
-  $("#tunnel-start").addEventListener("click", () => tunnelAction("start"));
-  $("#tunnel-stop").addEventListener("click", () => tunnelAction("stop"));
-  $("#tunnel-restart").addEventListener("click", () => tunnelAction("restart"));
-  $("#tunnel-refresh").addEventListener("click", loadTunnel);
-
-  // Terminal (admin)
-  $("#term-run").addEventListener("click", runCommand);
-  $("#term-input").addEventListener("keydown", (e) => { if (e.key === "Enter") runCommand(); });
-  $("#term-clear").addEventListener("click", () => ($("#term-output").textContent = "$ _"));
-  $("#term-fill").addEventListener("click", () => {
-    $("#term-input").value = $("#playit-cmd").textContent.trim();
-    $("#term-input").focus();
-  });
+  // Mot de passe système (VM)
+  $("#vmpw-save").addEventListener("click", saveVmPassword);
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);
 
-  // Copie de l'adresse / IP au clic (copyText défini au niveau module)
-  $("#card-addr").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
-  $("#server-ip").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
-  $("#info-content").addEventListener("click", (e) => {
+  // Copie au clic partout (boutons [data-copy] : commandes tunnel, infos, adresse)
+  document.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-copy]");
     if (btn) copyText(btn.dataset.copy);
   });
+  $("#card-addr").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
+  $("#server-ip").addEventListener("click", (e) => copyText(e.currentTarget.dataset.copy));
 
   // Cloche de notifications
   $("#bell").addEventListener("click", (e) => {
