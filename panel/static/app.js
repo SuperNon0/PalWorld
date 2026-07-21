@@ -266,12 +266,18 @@ async function loadTunnel() {
     pill.textContent = active ? "● Actif" : "○ Arrêté";
     pill.className = "pill " + (active ? "online" : "starting");
     const claim = $("#tunnel-claim");
+    const missing = $("#tunnel-claim-missing");
     if (t.claim_url) {
       $("#tunnel-claim-link").href = t.claim_url;
+      $("#tunnel-claim-link").textContent = t.claim_url;
       claim.classList.remove("hidden");
+      missing.classList.add("hidden");
     } else {
       claim.classList.add("hidden");
+      missing.classList.remove("hidden");
     }
+    const logs = $("#tunnel-logs");
+    if (logs) logs.textContent = t.logs && t.logs.trim() ? t.logs.trim() : "(journal vide — clique Rafraîchir)";
   } catch (err) {
     /* onglet inactif ou panel occupé */
   }
@@ -963,6 +969,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#tunnel-start").addEventListener("click", () => tunnelAction("start"));
   $("#tunnel-stop").addEventListener("click", () => tunnelAction("stop"));
   $("#tunnel-restart").addEventListener("click", () => tunnelAction("restart"));
+  $("#tunnel-refresh").addEventListener("click", loadTunnel);
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);

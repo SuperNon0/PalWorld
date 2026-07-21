@@ -156,16 +156,28 @@ def unit_installed(unit):
     return f"{unit}.service" in result.stdout
 
 
-def playit_claim_url():
-    """Extrait le dernier lien d'association playit.gg des logs du service."""
+def playit_logs(lines=200):
+    """Dernières lignes du journal de l'agent playit (pour l'onglet Tunnel)."""
     try:
         result = subprocess.run(
-            ["journalctl", "-u", f"{PLAYIT_SERVICE}.service", "-n", "200", "--no-pager"],
+            ["journalctl", "-u", f"{PLAYIT_SERVICE}.service", "-n", str(lines),
+             "--no-pager", "--no-hostname", "-o", "cat"],
             capture_output=True, text=True, check=False,
         )
     except OSError:
-        return None
-    urls = re.findall(r"https://playit\.gg/(?:claim|setup|mc-tunnel)/[A-Za-z0-9]+", result.stdout)
+        return ""
+    return result.stdout
+
+
+def playit_claim_url(logs=None):
+    """Extrait le lien d'association playit.gg des logs du service (le plus récent)."""
+    text = logs if logs is not None else playit_logs(1000)
+    # Priorité aux liens de claim/setup, sinon n'importe quel lien playit.gg.
+    urls = re.findall(r"https://playit\.gg/\S+", text)
+    urls = [u.rstrip(".,);]") for u in urls]
+    for url in reversed(urls):
+        if any(key in url for key in ("claim", "setup", "mc-tunnel", "agent")):
+            return url
     return urls[-1] if urls else None
 
 
@@ -815,7 +827,9 @@ def api_tunnel_status():
     data = {"installed": installed, "task": _current_task,
             "active": unit_active(PLAYIT_SERVICE) if installed else "inactive"}
     if installed:
-        url = playit_claim_url()
+        logs = playit_logs(60)
+        data["logs"] = logs
+        url = playit_claim_url(playit_logs(1000))
         if url:
             data["claim_url"] = url
     return jsonify(data)
@@ -911,6 +925,7 @@ def api_console():
                 ["journalctl", "-f", "-n", "200", "--no-hostname",
                  f"_SYSTEMD_UNIT={SERVICE}.service", "+",
                  f"_SYSTEMD_UNIT={PANEL_SERVICE}.service", "+",
+                 f"_SYSTEMD_UNIT={PLAYIT_SERVICE}.service", "+",
                  "SYSLOG_IDENTIFIER=palworld-steamcmd"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
             )
