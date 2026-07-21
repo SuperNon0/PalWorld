@@ -35,11 +35,13 @@ command -v curl >/dev/null && command -v gpg >/dev/null || {
 
 # -------------------------------------------------- 1. installation de l'agent
 install_via_apt() {
-    log "Ajout du dépôt apt officiel playit.gg…"
-    curl -SsL https://playit-cloud.github.io/ppa/key.gpg \
-        | gpg --dearmor | tee /etc/apt/trusted.gpg.d/playit.gpg >/dev/null
-    curl -SsL -o /etc/apt/sources.list.d/playit-cloud.list \
-        https://playit-cloud.github.io/ppa/playit-cloud.list
+    log "Ajout du dépôt apt officiel playit.gg (packages.playit.gg)…"
+    # Méthode officielle actuelle (cf. playit.gg → Agents → Download for Linux).
+    curl -SsL https://packages.playit.gg/keys/playit.gpg \
+        | gpg --dearmor | tee /usr/share/keyrings/playit.gpg >/dev/null
+    chmod 0644 /usr/share/keyrings/playit.gpg
+    curl -fsSL -o /etc/apt/sources.list.d/playit.list \
+        https://packages.playit.gg/repo-files/playit-debian.list
     apt-get update -y
     DEBIAN_FRONTEND=noninteractive apt-get install -y playit
 }
