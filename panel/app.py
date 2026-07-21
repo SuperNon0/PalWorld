@@ -386,6 +386,18 @@ def login_required(view):
     return wrapper
 
 
+def admin_required(view):
+    """Réserve l'accès au compte admin (gestion des comptes, infos sensibles)."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            return jsonify(error="Non authentifié"), 401
+        if not is_admin():
+            return jsonify(error="Réservé au compte admin."), 403
+        return view(*args, **kwargs)
+    return wrapper
+
+
 # -------------------------------------------------------------- planificateur
 def _shift_minutes(hhmm, delta):
     moment = datetime.strptime(hhmm, "%H:%M") - timedelta(minutes=delta)
@@ -523,10 +535,8 @@ def api_status():
 
 
 @app.get("/api/info")
-@login_required
+@admin_required
 def api_info():
-    if not is_admin():
-        return jsonify(error="Réservé au compte admin."), 403
     try:
         settings = palworld_config.read_settings(SETTINGS_FILE)
     except OSError:
@@ -669,7 +679,7 @@ def api_history():
 
 
 @app.get("/api/users")
-@login_required
+@admin_required
 def api_users_list():
     with _users_lock:
         users = load_users()
@@ -677,7 +687,7 @@ def api_users_list():
 
 
 @app.post("/api/users")
-@login_required
+@admin_required
 def api_users_create():
     data = request.get_json(silent=True) or {}
     username = str(data.get("username", "")).strip()
@@ -699,7 +709,7 @@ def api_users_create():
 
 
 @app.delete("/api/users/<username>")
-@login_required
+@admin_required
 def api_users_delete(username):
     with _users_lock:
         users = load_users()
@@ -716,7 +726,7 @@ def api_users_delete(username):
 
 
 @app.post("/api/users/<username>/password")
-@login_required
+@admin_required
 def api_users_password(username):
     data = request.get_json(silent=True) or {}
     password = str(data.get("password", ""))

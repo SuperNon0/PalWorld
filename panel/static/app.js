@@ -6,6 +6,7 @@ const $ = (sel) => document.querySelector(sel);
 let consoleSource = null;
 let configLoaded = false;
 let configMeta = {}; // clé -> { quoted: bool }
+let isAdmin = false; // renseigné par /api/status
 
 // ------------------------------------------------------------------ helpers
 async function api(path, options = {}) {
@@ -88,6 +89,9 @@ function renderStatus(status) {
 
   const infosTab = $("#tab-btn-infos");
   if (infosTab) infosTab.classList.toggle("hidden", !status.is_admin);
+  const usersBlock = $("#users-block");
+  if (usersBlock) usersBlock.classList.toggle("hidden", !status.is_admin);
+  isAdmin = !!status.is_admin;
 
   renderNotifications(status.notifications);
 
@@ -774,7 +778,7 @@ function showTab(name) {
   if (name === "console") startConsole();
   if (name === "config") {
     if (!configLoaded) loadConfig();
-    loadUsers();
+    if (isAdmin) loadUsers();
   }
   if (name === "backups") loadBackups();
   if (name === "acces") loadTunnel();
