@@ -63,6 +63,8 @@ VALID_QUOTED_VALUE = re.compile(r'^"[^"\r\n]*"$')
 VALID_KEY = re.compile(r"^[A-Za-z0-9_]+$")
 VALID_BACKUP_NAME = re.compile(r"^palworld-\d{8}-\d{6}\.tar\.gz$")
 VALID_TIME = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+# Adresse d'un tunnel playit.gg : hôte (ou IP) avec un port optionnel.
+VALID_PLAYIT = re.compile(r"^[A-Za-z0-9.\-]{1,110}(?::\d{1,5})?$")
 
 STATE_DEFAULTS = {
     "auto_backup_enabled": False,
@@ -80,6 +82,8 @@ STATE_DEFAULTS = {
     # Mot de passe système (VM) affiché sur la page Infos, modifiable par l'admin
     "vm_user": "",
     "vm_password": "",
+    # Adresse publique du tunnel playit.gg (xxxxx.playit.gg:PORT), saisie par l'admin
+    "playit_address": "",
 }
 
 app = Flask(__name__)
@@ -500,6 +504,7 @@ def api_status():
     with _state_lock:
         persisted = load_state()
     data["notifications"] = build_notifications(persisted, stats)
+    data["playit_address"] = persisted.get("playit_address", "")
     if state == "active":
         try:
             api = palworld_api()
@@ -549,6 +554,7 @@ def api_info():
         source_dir=str(SOURCE_DIR),
         ssh_user=state.get("vm_user") or creds.get("vm_user") or "ubuntu",
         vm_password=state.get("vm_password") or creds.get("vm_password", ""),
+        playit_address=state.get("playit_address", ""),
     )
 
 
@@ -567,6 +573,28 @@ def api_credentials_set():
             state["vm_user"] = str(data.get("vm_user", "")).strip()
         if "vm_password" in data:
             state["vm_password"] = str(data.get("vm_password", ""))
+        try:
+            save_state(state)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
+
+
+@app.post("/api/playit")
+@login_required
+def api_playit_set():
+    """Enregistre l'adresse publique du tunnel playit.gg à donner aux joueurs.
+
+    Le panel ne peut pas la connaître (le tunnel est créé sur playit.gg) : l'admin
+    la colle ici et elle s'affiche sur le tableau de bord et la page Infos.
+    """
+    data = request.get_json(silent=True) or {}
+    addr = str(data.get("playit_address", "")).strip()
+    if addr and not VALID_PLAYIT.match(addr):
+        return jsonify(error="Adresse invalide (attendu : xxxxx.playit.gg:PORT)."), 400
+    with _state_lock:
+        state = load_state()
+        state["playit_address"] = addr
         try:
             save_state(state)
         except OSError as exc:

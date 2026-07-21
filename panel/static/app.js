@@ -157,6 +157,16 @@ function renderStatus(status) {
     $("#stat-addr").textContent = "–";
   }
 
+  const playit = (status.playit_address || "").trim();
+  const playitCard = $("#card-playit");
+  if (playit) {
+    $("#stat-playit").textContent = playit;
+    playitCard.dataset.copy = playit;
+    playitCard.classList.remove("hidden");
+  } else {
+    playitCard.classList.add("hidden");
+  }
+
   renderPlayers(status.players || []);
 }
 
@@ -263,6 +273,26 @@ async function saveVmPassword() {
       body: { vm_user: $("#vmpw-user").value.trim(), vm_password: $("#vmpw-pass").value },
     });
     toast("Mot de passe système mis à jour (visible dans Infos).");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// ----------------------------- adresse publique du tunnel — onglet Accès/Tunnel
+async function loadPlayit() {
+  try {
+    const s = await api("/api/status");
+    $("#playit-addr").value = s.playit_address || "";
+  } catch (err) {
+    /* silencieux */
+  }
+}
+
+async function savePlayit() {
+  try {
+    await api("/api/playit", { body: { playit_address: $("#playit-addr").value.trim() } });
+    toast("Adresse du tunnel enregistrée.");
+    refreshStatus(); // met à jour la carte du tableau de bord
   } catch (err) {
     toast(err.message, true);
   }
@@ -736,6 +766,7 @@ async function loadInfo() {
         <h2>Serveur de jeu</h2>
         ${infoRow("Nom du serveur", d.server_name)}
         ${infoRow("Adresse à donner aux joueurs (LAN)", gameAddr, { mono: true, copyable: true })}
+        ${infoRow("Adresse publique (tunnel playit.gg)", d.playit_address, { empty: "(à renseigner dans Accès / Tunnel)", mono: true, copyable: !!d.playit_address })}
         ${infoRow("Mot de passe pour rejoindre", d.server_password, { empty: "(aucun — serveur public)", mono: true, copyable: !!d.server_password })}
         ${infoRow("Mot de passe admin (/AdminPassword en jeu, API, RCON)", d.admin_password, { mono: true, copyable: true })}
       </div>
@@ -783,6 +814,7 @@ function showTab(name) {
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
   if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); }
+  if (name === "acces") loadPlayit();
   if (name === "backups") loadBackups();
   if (name === "maintenance") loadMaintenance();
   if (name === "infos") loadInfo();
@@ -928,6 +960,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Mot de passe système (VM)
   $("#vmpw-save").addEventListener("click", saveVmPassword);
+
+  // Adresse publique du tunnel playit.gg
+  $("#playit-save").addEventListener("click", savePlayit);
+  $("#playit-copy").addEventListener("click", () => copyText($("#playit-addr").value.trim()));
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);

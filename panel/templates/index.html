@@ -60,9 +60,13 @@
         <div class="card"><span class="card-label">Version</span><span class="card-value" id="stat-version">–</span></div>
         <div class="card"><span class="card-label">RAM machine</span><span class="card-value" id="stat-ram">–</span></div>
         <div class="card"><span class="card-label">Disque libre</span><span class="card-value" id="stat-disk">–</span></div>
-        <div class="card card-addr" id="card-addr" title="Adresse du serveur — cliquer pour copier">
-          <span class="card-label">Adresse serveur</span>
+        <div class="card card-addr" id="card-addr" title="Adresse locale (LAN) du serveur — cliquer pour copier">
+          <span class="card-label">Adresse serveur (LAN)</span>
           <span class="card-value addr-value" id="stat-addr">–</span>
+        </div>
+        <div class="card card-addr hidden" id="card-playit" title="Adresse publique du tunnel playit.gg — cliquer pour copier">
+          <span class="card-label">Adresse publique (tunnel)</span>
+          <span class="card-value addr-value" id="stat-playit">–</span>
         </div>
       </div>
 
@@ -175,6 +179,16 @@
     <section id="tab-acces" class="tab-page">
       <div class="section-header"><h2>Accès des joueurs — tunnel playit.gg</h2></div>
       <p class="hint">Permet aux joueurs de rejoindre le serveur <b>sans ouvrir de port</b> sur ta box. Tout se fait dans un <b>terminal de la VM</b> (console Proxmox ou SSH depuis ton PC : <code>ssh ubuntu@…</code>).</p>
+
+      <div class="panel-block">
+        <h2>Adresse publique à donner aux joueurs</h2>
+        <p class="hint">Une fois ton tunnel créé sur playit.gg (étapes ci-dessous), colle ici l'adresse <code>xxxxx.playit.gg:PORT</code> qu'il t'a donnée. Elle s'affichera sur le <b>Tableau de bord</b> et la page <b>Infos</b>, prête à copier pour tes joueurs.</p>
+        <div class="auto-row">
+          <input type="text" id="playit-addr" class="grow" placeholder="ex : xxxxx.playit.gg:12345" autocomplete="off">
+          <button class="btn primary" id="playit-save">Enregistrer</button>
+          <button class="btn" id="playit-copy">Copier</button>
+        </div>
+      </div>
 
       <div class="panel-block">
         <h2>1 · Installer et associer l'agent</h2>
