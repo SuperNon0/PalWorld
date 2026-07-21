@@ -25,7 +25,7 @@ set -euo pipefail
 
 # ------------------------------------------------------------------ paramètres
 VMID="${VMID:-}"                       # vide = prochain ID libre
-HOSTNAME="${HOSTNAME:-palworld}"
+HOSTNAME="${HOSTNAME:-PalWorld}"       # nom de la VM dans Proxmox
 CORES="${CORES:-4}"
 RAM="${RAM:-16384}"                    # Mo — Palworld est gourmand en RAM
 DISK="${DISK:-40}"                     # Go
@@ -155,9 +155,12 @@ fi
 
 SNIPPET_FILE="$SNIPPET_DIR/palworld-vm-$VMID.yaml"
 msg_info "Écriture de la configuration cloud-init (installation au 1er démarrage)…"
+# Le hostname Linux doit être en minuscules (convention) ; le nom de VM Proxmox
+# garde la casse choisie ($HOSTNAME).
+CI_HOSTNAME=$(echo "$HOSTNAME" | tr '[:upper:]' '[:lower:]')
 cat > "$SNIPPET_FILE" <<EOF
 #cloud-config
-hostname: $HOSTNAME
+hostname: $CI_HOSTNAME
 manage_etc_hosts: true
 timezone: Europe/Paris
 users:
@@ -218,15 +221,17 @@ cat <<EOF
 EOF
 
 # ----------------------------------------- attente de la fin de l'installation
-msg_info "Installation en cours dans la VM (SteamCMD ~8 Go, ~10 à 20 min)…"
-msg_info "Tu peux quitter avec Ctrl+C sans risque : l'installation continue dans la VM."
+echo
+msg_info "${YW}Patiente…${CL} l'adresse du site va s'afficher automatiquement ci-dessous"
+msg_info "une fois le téléchargement terminé (SteamCMD ~8 Go, ~10 à 20 min)."
+msg_info "Ne ferme pas encore — ou fais Ctrl+C sans risque : l'installation continue dans la VM."
 IP=""
 PANEL_READY=0
 DEADLINE=$((SECONDS + 1800))   # 30 min max d'attente
 while [[ $SECONDS -lt $DEADLINE ]]; do
     if [[ -z $IP ]]; then
         IP=$(get_vm_ip || true)
-        [[ -n $IP ]] && msg_ok "IP de la VM détectée : $IP"
+        [[ -n $IP ]] && msg_ok "IP de la VM détectée : $IP — patiente encore le temps que le panel démarre…"
     fi
     if [[ -n $IP ]] && curl -sf -o /dev/null --max-time 3 "http://$IP:$PANEL_PORT/login"; then
         PANEL_READY=1
