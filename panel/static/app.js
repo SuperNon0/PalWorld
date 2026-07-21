@@ -87,11 +87,11 @@ function renderStatus(status) {
   const banner = $("#install-banner");
   if (banner) banner.classList.toggle("hidden", status.server_installed !== false);
 
-  const infosTab = $("#tab-btn-infos");
-  if (infosTab) infosTab.classList.toggle("hidden", !status.is_admin);
-  const usersBlock = $("#users-block");
-  if (usersBlock) usersBlock.classList.toggle("hidden", !status.is_admin);
   isAdmin = !!status.is_admin;
+  const infosTab = $("#tab-btn-infos");
+  if (infosTab) infosTab.classList.toggle("hidden", !isAdmin);
+  const paramTab = $("#tab-btn-parametres");
+  if (paramTab) paramTab.classList.toggle("hidden", !isAdmin);
 
   renderNotifications(status.notifications);
 
@@ -778,10 +778,8 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "console") startConsole();
-  if (name === "config") {
-    if (!configLoaded) loadConfig();
-    if (isAdmin) loadUsers();
-  }
+  if (name === "config" && !configLoaded) loadConfig();
+  if (name === "parametres" && isAdmin) loadUsers();
   if (name === "backups") loadBackups();
   if (name === "acces") loadTunnel();
   if (name === "maintenance") loadMaintenance();

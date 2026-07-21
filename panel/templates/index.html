@@ -44,6 +44,7 @@
     <button class="tab" data-tab="backups">Sauvegardes</button>
     <button class="tab" data-tab="acces">Accès / Tunnel</button>
     <button class="tab" data-tab="maintenance">Maintenance</button>
+    <button class="tab hidden" id="tab-btn-parametres" data-tab="parametres">Paramètres</button>
     <button class="tab hidden" id="tab-btn-infos" data-tab="infos">Infos</button>
   </nav>
 
@@ -155,22 +156,6 @@
       <div class="table-wrap">
         <table class="table config-table" id="config-table"><tbody></tbody></table>
       </div>
-
-      <div class="panel-block security-block hidden" id="users-block">
-        <h2>Comptes du panel</h2>
-        <p class="hint">Gère les comptes qui peuvent se connecter au panel (réservé à l'admin).</p>
-        <div class="table-wrap">
-          <table class="table" id="users-table">
-            <thead><tr><th>Identifiant</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="auto-row" style="margin-top:14px">
-          <input type="text" id="new-user" placeholder="Nouvel identifiant" autocomplete="off">
-          <input type="password" id="new-user-pw" placeholder="Mot de passe (8 min.)" autocomplete="new-password">
-          <button class="btn primary" id="user-create">Créer le compte</button>
-        </div>
-      </div>
     </section>
 
     <section id="tab-backups" class="tab-page">
@@ -245,6 +230,27 @@
         <div class="auto-row">
           <span id="panel-update-state" class="update-state">—</span>
           <button class="btn primary" data-action="update-panel">Mettre à jour le panel</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-parametres" class="tab-page">
+      <div class="section-header"><h2>Paramètres du panel</h2></div>
+      <p class="hint">🔒 Réservé au compte <b>admin</b>.</p>
+
+      <div class="panel-block">
+        <h2>Comptes du panel</h2>
+        <p class="hint">Gère les comptes qui peuvent se connecter au panel.</p>
+        <div class="table-wrap">
+          <table class="table" id="users-table">
+            <thead><tr><th>Identifiant</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="auto-row" style="margin-top:14px">
+          <input type="text" id="new-user" placeholder="Nouvel identifiant" autocomplete="off">
+          <input type="password" id="new-user-pw" placeholder="Mot de passe (8 min.)" autocomplete="new-password">
+          <button class="btn primary" id="user-create">Créer le compte</button>
         </div>
       </div>
     </section>
