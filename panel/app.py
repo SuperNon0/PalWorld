@@ -95,6 +95,9 @@ USERS_FILE = Path(CONFIG.get("users_file", str(STATE_FILE.parent / "panel-users.
 VALID_USERNAME = re.compile(r"^[A-Za-z0-9_.\-]{3,32}$")
 # Identifiants système (accès VM), écrits à l'installation, lus par la page Infos.
 CREDENTIALS_FILE = Path(CONFIG.get("credentials_file", str(STATE_FILE.parent / "panel-credentials.json")))
+# Terminal admin : préfixe d'exécution des commandes (root via sudo par défaut).
+# ⚠️ Donne un accès root complet au compte admin du panel.
+TERMINAL_PREFIX = CONFIG.get("terminal_prefix", ["sudo", "-n", "/usr/bin/bash", "-c"])
 HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minute
 
 
@@ -880,6 +883,39 @@ def api_tunnel_action(action):
     except RuntimeError as exc:
         return jsonify(error=str(exc)), 500
     return jsonify(ok=True)
+
+
+@app.post("/api/terminal/run")
+@admin_required
+def api_terminal_run():
+    """Exécute une commande shell (root) et renvoie la sortie en flux.
+
+    ⚠️ Réservé au compte admin. Donne un accès root complet à la machine.
+    """
+    command = str((request.get_json(silent=True) or {}).get("command", "")).strip()
+    if not command:
+        return jsonify(error="Commande vide."), 400
+
+    def stream():
+        try:
+            process = subprocess.Popen(
+                list(TERMINAL_PREFIX) + [command],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+            )
+        except OSError as exc:
+            yield f"[erreur de lancement] {exc}\n"
+            return
+        try:
+            for line in process.stdout:
+                yield line
+        finally:
+            process.stdout.close()
+            code = process.wait()
+            yield f"\n[commande terminée — code de sortie {code}]\n"
+
+    return Response(stream(), mimetype="text/plain; charset=utf-8",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/check-updates")

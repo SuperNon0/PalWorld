@@ -46,6 +46,7 @@
     <button class="tab" data-tab="maintenance">Maintenance</button>
     <button class="tab hidden" id="tab-btn-parametres" data-tab="parametres">Paramètres</button>
     <button class="tab hidden" id="tab-btn-infos" data-tab="infos">Infos</button>
+    <button class="tab hidden" id="tab-btn-terminal" data-tab="terminal">Terminal</button>
   </nav>
 
   <main>
@@ -271,6 +272,32 @@
           <input type="password" id="new-user-pw" placeholder="Mot de passe (8 min.)" autocomplete="new-password">
           <button class="btn primary" id="user-create">Créer le compte</button>
         </div>
+      </div>
+    </section>
+
+    <section id="tab-terminal" class="tab-page">
+      <div class="section-header"><h2>Terminal (root)</h2></div>
+      <div class="callout warn">
+        ⚠️ <b>Attention</b> : ce terminal exécute les commandes <b>en root</b> sur la VM.
+        N'exécute que des commandes que tu comprends. Réservé au compte admin.
+      </div>
+
+      <div class="panel-block">
+        <h2>Associer le tunnel playit</h2>
+        <p class="hint">Commande officielle playit (installe l'agent et affiche le lien d'association) :</p>
+        <div class="auto-row">
+          <code class="grow" id="playit-cmd">curl -fsSL https://packages.playit.gg/install.sh | bash</code>
+          <button class="btn small" id="term-fill">Mettre dans le terminal</button>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <div class="auto-row">
+          <input type="text" id="term-input" class="grow" placeholder="Commande à exécuter (ex : ls -la)" autocomplete="off" spellcheck="false">
+          <button class="btn primary" id="term-run">Exécuter</button>
+          <button class="btn ghost" id="term-clear">Vider</button>
+        </div>
+        <pre id="term-output" class="tunnel-logs" style="max-height:420px">$ _</pre>
       </div>
     </section>
 

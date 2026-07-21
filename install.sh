@@ -187,6 +187,10 @@ palworld ALL=(root) NOPASSWD: /usr/bin/systemctl start palworld.service, /usr/bi
 palworld ALL=(root) NOPASSWD: /usr/bin/systemctl start playit.service, /usr/bin/systemctl stop playit.service, /usr/bin/systemctl restart playit.service
 palworld ALL=(root) NOPASSWD: /opt/palworld/scripts/tunnel-playit.sh
 palworld ALL=(root) NOPASSWD: /opt/palworld/scripts/update-panel.sh
+# Terminal admin du panel : exécution de commandes en root. ATTENTION — donne un
+# accès root complet au compte « admin » du panel. Retire cette ligne (puis
+# « systemctl restart palworld-panel ») si tu ne veux pas de terminal web.
+palworld ALL=(root) NOPASSWD: /usr/bin/bash -c *
 EOF
 chmod 440 /etc/sudoers.d/palworld-panel
 

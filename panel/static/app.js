@@ -127,6 +127,8 @@ function renderStatus(status) {
   if (infosTab) infosTab.classList.toggle("hidden", !isAdmin);
   const paramTab = $("#tab-btn-parametres");
   if (paramTab) paramTab.classList.toggle("hidden", !isAdmin);
+  const termTab = $("#tab-btn-terminal");
+  if (termTab) termTab.classList.toggle("hidden", !isAdmin);
 
   renderNotifications(status.notifications);
 
@@ -336,6 +338,50 @@ async function tunnelAction(action) {
     setTimeout(loadTunnel, 1200);
   } catch (err) {
     toast(err.message, true);
+  }
+}
+
+// ------------------------------------------------------------ terminal (admin)
+let termRunning = false;
+
+async function runCommand() {
+  if (termRunning) return;
+  const input = $("#term-input");
+  const command = input.value.trim();
+  if (!command) return;
+  const out = $("#term-output");
+  out.textContent += `\n$ ${command}\n`;
+  out.scrollTop = out.scrollHeight;
+  termRunning = true;
+  $("#term-run").disabled = true;
+  try {
+    const res = await fetch("/api/terminal/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command }),
+    });
+    if (res.status === 401) { window.location = "/login"; return; }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      out.textContent += (d.error || `Erreur ${res.status}`) + "\n";
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const near = out.scrollHeight - out.scrollTop - out.clientHeight < 60;
+      out.textContent += decoder.decode(value, { stream: true });
+      if (near) out.scrollTop = out.scrollHeight;
+    }
+  } catch (err) {
+    out.textContent += "\n[interrompu : " + err.message + "]\n";
+  } finally {
+    termRunning = false;
+    $("#term-run").disabled = false;
+    input.value = "";
+    input.focus();
   }
 }
 
@@ -1005,6 +1051,15 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#tunnel-stop").addEventListener("click", () => tunnelAction("stop"));
   $("#tunnel-restart").addEventListener("click", () => tunnelAction("restart"));
   $("#tunnel-refresh").addEventListener("click", loadTunnel);
+
+  // Terminal (admin)
+  $("#term-run").addEventListener("click", runCommand);
+  $("#term-input").addEventListener("keydown", (e) => { if (e.key === "Enter") runCommand(); });
+  $("#term-clear").addEventListener("click", () => ($("#term-output").textContent = "$ _"));
+  $("#term-fill").addEventListener("click", () => {
+    $("#term-input").value = $("#playit-cmd").textContent.trim();
+    $("#term-input").focus();
+  });
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);
