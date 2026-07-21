@@ -199,11 +199,16 @@
         </div>
 
         <div id="tunnel-claim-missing" class="callout warn hidden">
-          <b>2 · Lien d'association pas encore détecté.</b><br>
-          Le lien <code>https://playit.gg/…</code> apparaît dans le journal ci-dessous
-          (clique <b>Rafraîchir</b>). Sinon, connecte-toi sur
+          <b>2 · Lien d'association pas encore détecté ?</b><br>
+          Le nouvel agent playit affiche souvent le lien uniquement dans un
+          <b>terminal</b>. Ouvre la <b>console de la VM</b> (ou SSH depuis ton PC)
+          et lance la commande officielle playit :
+          <br><code>curl -fsSL https://packages.playit.gg/install.sh | bash</code>
+          <br>Le lien <code>https://playit.gg/…</code> s'affiche alors dans le
+          terminal : ouvre-le dans ton navigateur pour relier l'agent à ton compte.
+          <br>Ou connecte-toi sur
           <a href="https://playit.gg" target="_blank" rel="noopener">playit.gg</a> →
-          <b>Agents</b> : ton agent y apparaît, tu peux le relier là.
+          <b>Agents</b> : ton agent (déjà actif) peut y être relié directement.
         </div>
 
         <div class="section-header" style="margin-top:16px">
