@@ -107,7 +107,16 @@ HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minut
 
 # --------------------------------------------------------------- utilitaires
 def palworld_api():
-    settings = palworld_config.read_settings(SETTINGS_FILE)
+    try:
+        settings = palworld_config.read_settings(SETTINGS_FILE)
+    except OSError as exc:
+        # Fichier de config absent (serveur pas encore installé) ou illisible :
+        # on renvoie une APIError (déjà gérée partout) pour un message clair côté
+        # panel, plutôt qu'une erreur 500 brute.
+        raise APIError(
+            "Configuration du serveur illisible — le serveur est-il installé "
+            f"et démarré ? ({exc})"
+        ) from exc
     password = palworld_config.unquote(settings.get("AdminPassword", ""))
     return PalworldAPI(API_URL, password, timeout=3)
 
