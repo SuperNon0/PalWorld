@@ -667,6 +667,11 @@ def api_info():
     with _state_lock:
         state = load_state()
 
+    # Récapitulatif des notifications Discord (aide-mémoire sur la page Infos).
+    notify_slugs = state.get("notify_slugs") or {}
+    notify_events = [{"label": label, "slug": notify_slugs.get(key, "")}
+                     for key, label in NOTIFY_EVENTS.items()]
+
     return jsonify(
         ip=local_ip(),
         game_port=game_port(),
@@ -683,6 +688,9 @@ def api_info():
         ssh_user=state.get("vm_user") or creds.get("vm_user") or "ubuntu",
         vm_password=state.get("vm_password") or creds.get("vm_password", ""),
         playit_address=state.get("playit_address", ""),
+        notify_enabled=bool(state.get("notify_enabled")),
+        notify_url=state.get("notify_url", ""),
+        notify_events=notify_events,
     )
 
 

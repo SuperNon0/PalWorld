@@ -823,6 +823,18 @@ async function loadInfo() {
         <p class="hint">Les mots de passe des comptes du panel ne sont pas affichables (stockés chiffrés). Gère-les dans Configuration → Comptes du panel.</p>
       </div>
       <div class="panel-block">
+        <h2>Notifications Discord (via botpanel)</h2>
+        ${infoRow("État", d.notify_enabled ? "Activées" : "Désactivées")}
+        ${infoRow("URL du botpanel", d.notify_url, { empty: "(non renseignée)", mono: true, copyable: !!d.notify_url })}
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>Événement</th><th>Slug configuré (dans botpanel)</th></tr></thead>
+          <tbody>
+            ${(d.notify_events || []).map((e) => `<tr><td>${escapeHtml(e.label)}</td><td>${e.slug ? `<code>${escapeHtml(e.slug)}</code>` : '<span class="muted">— désactivé</span>'}</td></tr>`).join("")}
+          </tbody>
+        </table></div>
+        <p class="hint">Le texte de chaque message est défini dans ton botpanel (par slug). Pour modifier l'URL ou les slugs : Paramètres → Notifications Discord.</p>
+      </div>
+      <div class="panel-block">
         <h2>Accès système (VM) — secours</h2>
         ${infoRow("Utilisateur", d.ssh_user, { mono: true })}
         ${infoRow("Mot de passe système", d.vm_password, { empty: "(défini par toi / clé SSH)", mono: true, copyable: !!d.vm_password })}
