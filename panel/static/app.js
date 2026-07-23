@@ -278,6 +278,53 @@ async function saveVmPassword() {
   }
 }
 
+// -------------------------- notifications Discord (botpanel) — page Paramètres
+function currentNotifySlugs() {
+  const slugs = {};
+  document.querySelectorAll("#notify-table [data-notify-slug]").forEach((el) => {
+    slugs[el.dataset.notifySlug] = el.value.trim();
+  });
+  return slugs;
+}
+
+async function loadNotifyConfig() {
+  try {
+    const c = await api("/api/notifications-config");
+    $("#notify-enabled").checked = !!c.enabled;
+    $("#notify-url").value = c.url || "";
+    $("#notify-table tbody").innerHTML = (c.events || [])
+      .map(
+        (e) => `<tr>
+          <td>${escapeHtml(e.label)}</td>
+          <td><input type="text" class="grow" data-notify-slug="${escapeHtml(e.key)}" value="${escapeHtml(e.slug)}" placeholder="(désactivé)" autocomplete="off"></td>
+          <td><button class="btn small" data-notify-test="${escapeHtml(e.key)}">Tester</button></td>
+        </tr>`
+      )
+      .join("");
+  } catch (err) {
+    /* silencieux */
+  }
+}
+
+async function saveNotifyConfig() {
+  await api("/api/notifications-config", {
+    body: { enabled: $("#notify-enabled").checked, url: $("#notify-url").value.trim(), slugs: currentNotifySlugs() },
+  });
+}
+
+async function testNotify(key) {
+  const input = $(`#notify-table [data-notify-slug="${key}"]`);
+  const slug = input ? input.value.trim() : "";
+  if (!slug) return toast("Renseigne d'abord un slug pour cet événement.", true);
+  try {
+    await saveNotifyConfig(); // l'URL doit être enregistrée avant le test
+    const r = await api("/api/notifications-config/test", { body: { slug } });
+    toast("Test envoyé ✓" + (r.detail ? " — " + r.detail : ""));
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 // ----------------------------- adresse publique du tunnel — onglet Accès/Tunnel
 async function loadPlayit() {
   try {
@@ -813,7 +860,7 @@ function showTab(name) {
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
-  if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); }
+  if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); loadNotifyConfig(); }
   if (name === "acces") loadPlayit();
   if (name === "backups") loadBackups();
   if (name === "maintenance") loadMaintenance();
@@ -964,6 +1011,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Adresse publique du tunnel playit.gg
   $("#playit-save").addEventListener("click", savePlayit);
   $("#playit-copy").addEventListener("click", () => copyText($("#playit-addr").value.trim()));
+
+  // Notifications Discord (botpanel)
+  $("#notify-save").addEventListener("click", async () => {
+    try {
+      await saveNotifyConfig();
+      toast("Notifications enregistrées.");
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+  $("#notify-table").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-notify-test]");
+    if (btn) testNotify(btn.dataset.notifyTest);
+  });
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);

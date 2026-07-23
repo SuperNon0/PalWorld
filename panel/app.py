@@ -65,6 +65,10 @@ VALID_BACKUP_NAME = re.compile(r"^palworld-\d{8}-\d{6}\.tar\.gz$")
 VALID_TIME = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 # Adresse d'un tunnel playit.gg : hôte (ou IP) avec un port optionnel.
 VALID_PLAYIT = re.compile(r"^[A-Za-z0-9.\-]{1,110}(?::\d{1,5})?$")
+# URL de base du botpanel (http[s]://hôte[:port], sans chemin).
+VALID_NOTIFY_URL = re.compile(r"^https?://[A-Za-z0-9.\-]{1,110}(?::\d{1,5})?$")
+# Slug d'une notification botpanel.
+VALID_SLUG = re.compile(r"^[A-Za-z0-9_.\-]{1,64}$")
 
 STATE_DEFAULTS = {
     "auto_backup_enabled": False,
@@ -84,6 +88,10 @@ STATE_DEFAULTS = {
     "vm_password": "",
     # Adresse publique du tunnel playit.gg (xxxxx.playit.gg:PORT), saisie par l'admin
     "playit_address": "",
+    # Notifications Discord via le botpanel (POST /api/notify {"id": slug})
+    "notify_enabled": False,
+    "notify_url": "",          # URL de base du botpanel, ex : http://192.168.0.30:8080
+    "notify_slugs": {},        # {clé d'événement: slug de la notif botpanel}
 }
 
 app = Flask(__name__)
@@ -96,6 +104,20 @@ _current_task = None
 _state_lock = threading.Lock()
 _history_lock = threading.Lock()
 _users_lock = threading.Lock()
+
+# Suivi des transitions pour les notifications (évite d'alerter à chaque tick).
+_last_online = None    # bool | None : dernier état connu du serveur (en ligne ?)
+_disk_was_low = False  # le disque était-il déjà en dessous du seuil au dernier tick ?
+
+# Événements notifiables → libellé affiché dans le panel (et repère pour l'admin).
+NOTIFY_EVENTS = {
+    "server_online": "🟢 Serveur démarré",
+    "server_offline": "🔴 Serveur arrêté / hors ligne",
+    "server_update": "⬆️ Mise à jour du serveur disponible",
+    "backup_done": "💾 Sauvegarde terminée",
+    "backup_failed": "⚠️ Sauvegarde échouée",
+    "disk_low": "💽 Espace disque faible",
+}
 
 # Comptes du panel : {identifiant: hash}. Fichier inscriptible par palworld.
 USERS_FILE = Path(CONFIG.get("users_file", str(STATE_FILE.parent / "panel-users.json")))
@@ -150,11 +172,12 @@ def systemctl(action, unit=SERVICE):
         raise RuntimeError(result.stderr.strip() or f"systemctl {action} a échoué")
 
 
-def run_script_async(task_name, script_path, args=(), extra_env=None, sudo=False):
+def run_script_async(task_name, script_path, args=(), extra_env=None, sudo=False, on_done=None):
     """Lance un script en arrière-plan (une seule tâche à la fois).
 
     Avec ``sudo=True``, le script est exécuté en root via ``sudo -n`` — réservé
     aux scripts root explicitement autorisés dans le sudoers du panel.
+    ``on_done(returncode)`` est appelé après la fin du script (verrou déjà relâché).
     """
     global _current_task
     if not _task_lock.acquire(blocking=False):
@@ -170,11 +193,17 @@ def run_script_async(task_name, script_path, args=(), extra_env=None, sudo=False
 
     def worker():
         global _current_task
+        returncode = None
         try:
-            subprocess.run(command, check=False, env=env)
+            returncode = subprocess.run(command, check=False, env=env).returncode
         finally:
             _current_task = None
             _task_lock.release()
+        if on_done is not None:
+            try:
+                on_done(returncode)
+            except Exception:
+                logging.exception("Callback de fin de tâche en échec")
 
     threading.Thread(target=worker, daemon=True).start()
     return True
@@ -332,6 +361,7 @@ def check_for_updates():
     panel_upd = panel_update_available()
     with _state_lock:
         state = load_state()
+        was_available = bool(state.get("server_update_available"))
         state["update_check_time"] = int(time.time())
         state["server_local_build"] = local_build
         # ne signale une MAJ serveur que si les deux builds sont connus et diffèrent
@@ -339,7 +369,11 @@ def check_for_updates():
             state["server_latest_build"] = latest_build
             state["server_update_available"] = local_build != latest_build
         state["panel_update_available"] = panel_upd
+        now_available = bool(state.get("server_update_available"))
         save_state(state)
+    # Notifie seulement au passage « pas de MAJ » → « MAJ dispo » (pas à chaque contrôle).
+    if now_available and not was_available:
+        notify_external_async("server_update")
 
 
 def build_notifications(state, stats):
@@ -364,6 +398,52 @@ def build_notifications(state, stats):
             "action": None,
         })
     return notes
+
+
+# --------------------------------------------- notifications Discord (botpanel)
+def _post_notify(url, slug):
+    """POST {"id": slug} sur <url>/api/notify. Retourne (succès, détail)."""
+    payload = json.dumps({"id": slug}).encode()
+    request = urllib.request.Request(
+        url.rstrip("/") + "/api/notify", data=payload,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=6) as response:
+            body = response.read().decode(errors="replace").strip()
+            return True, body[:200] or "envoyée"
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode(errors="replace")[:200]
+        except OSError:
+            detail = ""
+        return False, f"HTTP {exc.code}{(' — ' + detail) if detail else ''}"
+    except (urllib.error.URLError, OSError, TimeoutError, ValueError) as exc:
+        return False, str(exc)
+
+
+def notify_external(event):
+    """Déclenche la notification botpanel associée à un événement, si configurée."""
+    with _state_lock:
+        state = load_state()
+    if not state.get("notify_enabled"):
+        return
+    url = (state.get("notify_url") or "").strip()
+    slug = (state.get("notify_slugs") or {}).get(event, "")
+    if not url or not slug:
+        return
+    ok, detail = _post_notify(url, slug)
+    if not ok:
+        logging.warning("Notification botpanel (%s) échouée : %s", event, detail)
+
+
+def notify_external_async(event):
+    """Envoi non bloquant : ne ralentit jamais l'action qui l'a déclenché."""
+    threading.Thread(target=notify_external, args=(event,), daemon=True).start()
+
+
+def _on_backup_done(returncode):
+    notify_external_async("backup_done" if returncode == 0 else "backup_failed")
 
 
 def login_required(view):
@@ -413,6 +493,36 @@ def sample_metrics():
         HISTORY.append(entry)
 
 
+def _check_service_transition():
+    """Notifie au passage en ligne ↔ hors ligne du serveur (états stables seulement)."""
+    global _last_online
+    state = service_state()
+    if state == "active":
+        online = True
+    elif state in ("inactive", "failed", "deactivating"):
+        online = False
+    else:
+        return  # activating/unknown : transitoire, on ignore (évite le flapping)
+    if _last_online is None:
+        _last_online = online  # premier relevé : on mémorise sans notifier
+        return
+    if online != _last_online:
+        _last_online = online
+        notify_external_async("server_online" if online else "server_offline")
+
+
+def _check_disk_transition(stats):
+    """Notifie une seule fois quand le disque passe sous le seuil d'alerte."""
+    global _disk_was_low
+    free = stats.get("disk_free")
+    if free is None:
+        return
+    low = free < LOW_DISK_BYTES
+    if low and not _disk_was_low:
+        notify_external_async("disk_low")
+    _disk_was_low = low
+
+
 def scheduler_loop():
     """Sauvegardes auto + redémarrage quotidien + vérification des mises à jour."""
     last_minute = None
@@ -428,6 +538,10 @@ def scheduler_loop():
                 except Exception:
                     logging.exception("Vérification des mises à jour impossible")
 
+            # Détection des transitions (serveur en ligne/hors ligne, disque bas)
+            _check_service_transition()
+            _check_disk_transition(system_stats())
+
             with _state_lock:
                 state = load_state()
 
@@ -437,6 +551,7 @@ def scheduler_loop():
                     started = run_script_async(
                         "backup", SCRIPTS_DIR / "backup.sh",
                         extra_env={"KEEP": str(state["auto_backup_keep"])},
+                        on_done=_on_backup_done,
                     )
                     if started:
                         with _state_lock:
@@ -611,6 +726,68 @@ def api_playit_set():
     return jsonify(ok=True)
 
 
+@app.get("/api/notifications-config")
+@admin_required
+def api_notify_config_get():
+    with _state_lock:
+        state = load_state()
+    slugs = state.get("notify_slugs") or {}
+    return jsonify(
+        enabled=bool(state.get("notify_enabled")),
+        url=state.get("notify_url", ""),
+        events=[{"key": key, "label": label, "slug": slugs.get(key, "")}
+                for key, label in NOTIFY_EVENTS.items()],
+    )
+
+
+@app.post("/api/notifications-config")
+@admin_required
+def api_notify_config_set():
+    data = request.get_json(silent=True) or {}
+    url = str(data.get("url", "")).strip().rstrip("/")
+    if url and not VALID_NOTIFY_URL.match(url):
+        return jsonify(error="URL du botpanel invalide (ex : http://192.168.0.30:8080)."), 400
+    raw = data.get("slugs") or {}
+    if not isinstance(raw, dict):
+        return jsonify(error="Format des slugs invalide."), 400
+    slugs = {}
+    for key, value in raw.items():
+        if key not in NOTIFY_EVENTS:
+            continue
+        value = str(value).strip()
+        if not value:
+            continue  # vide = événement désactivé
+        if not VALID_SLUG.match(value):
+            return jsonify(error=f"Slug invalide pour « {NOTIFY_EVENTS[key]} »."), 400
+        slugs[key] = value
+    with _state_lock:
+        state = load_state()
+        state["notify_enabled"] = bool(data.get("enabled"))
+        state["notify_url"] = url
+        state["notify_slugs"] = slugs
+        try:
+            save_state(state)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
+
+
+@app.post("/api/notifications-config/test")
+@admin_required
+def api_notify_test():
+    slug = str((request.get_json(silent=True) or {}).get("slug", "")).strip()
+    if not slug:
+        return jsonify(error="Renseigne d'abord le slug à tester."), 400
+    with _state_lock:
+        url = (load_state().get("notify_url") or "").strip()
+    if not url:
+        return jsonify(error="Renseigne d'abord l'URL du botpanel (puis Enregistre)."), 400
+    ok, detail = _post_notify(url, slug)
+    if ok:
+        return jsonify(ok=True, detail=detail)
+    return jsonify(error=f"Échec de l'envoi : {detail}"), 502
+
+
 @app.post("/api/action")
 @login_required
 def api_action():
@@ -644,7 +821,7 @@ def api_action():
             if not run_script_async("update-panel", SCRIPTS_DIR / "update-panel.sh", sudo=True):
                 return jsonify(error="Une tâche est déjà en cours."), 409
         elif action == "backup":
-            if not run_script_async("backup", SCRIPTS_DIR / "backup.sh"):
+            if not run_script_async("backup", SCRIPTS_DIR / "backup.sh", on_done=_on_backup_done):
                 return jsonify(error="Une tâche est déjà en cours."), 409
         else:
             return jsonify(error=f"Action inconnue : {action}"), 400
