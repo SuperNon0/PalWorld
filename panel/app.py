@@ -114,6 +114,7 @@ NOTIFY_EVENTS = {
     "server_online": "🟢 Serveur démarré",
     "server_offline": "🔴 Serveur arrêté / hors ligne",
     "server_update": "⬆️ Mise à jour du serveur disponible",
+    "panel_update": "⬆️ Mise à jour du panel disponible",
     "backup_done": "💾 Sauvegarde terminée",
     "backup_failed": "⚠️ Sauvegarde échouée",
     "disk_low": "💽 Espace disque faible",
@@ -361,7 +362,8 @@ def check_for_updates():
     panel_upd = panel_update_available()
     with _state_lock:
         state = load_state()
-        was_available = bool(state.get("server_update_available"))
+        was_server = bool(state.get("server_update_available"))
+        was_panel = bool(state.get("panel_update_available"))
         state["update_check_time"] = int(time.time())
         state["server_local_build"] = local_build
         # ne signale une MAJ serveur que si les deux builds sont connus et diffèrent
@@ -369,11 +371,13 @@ def check_for_updates():
             state["server_latest_build"] = latest_build
             state["server_update_available"] = local_build != latest_build
         state["panel_update_available"] = panel_upd
-        now_available = bool(state.get("server_update_available"))
+        now_server = bool(state.get("server_update_available"))
         save_state(state)
     # Notifie seulement au passage « pas de MAJ » → « MAJ dispo » (pas à chaque contrôle).
-    if now_available and not was_available:
+    if now_server and not was_server:
         notify_external_async("server_update")
+    if panel_upd and not was_panel:
+        notify_external_async("panel_update")
 
 
 def build_notifications(state, stats):
