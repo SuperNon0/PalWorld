@@ -129,6 +129,7 @@ NOTIFY_EVENTS = {
 HA_ENTITIES = {
     "sensor.palworld_statut": "Statut (En ligne / Hors ligne)",
     "sensor.palworld_joueurs": "Nombre de joueurs (attribut « max »)",
+    "sensor.palworld_joueurs_noms": "Pseudos des joueurs connectés (attribut « liste »)",
     "sensor.palworld_fps": "FPS du serveur",
     "sensor.palworld_version": "Build installé",
 }
@@ -490,22 +491,32 @@ def _ha_states():
               "deactivating": "Arrêt"}.get(svc, "Inconnu")
     players = fps = None
     max_players = None
+    names = []
     if svc == "active":
         try:
-            metrics = palworld_api().metrics()
+            api = palworld_api()
+            metrics = api.metrics()
             players = metrics.get("currentplayernum")
             max_players = metrics.get("maxplayernum")
             fps = metrics.get("serverfps")
+            names = [str(p.get("name") or "?") for p in api.players().get("players", [])]
         except APIError:
             pass
     joueurs_attr = {"friendly_name": "Palworld – Joueurs", "unit_of_measurement": "joueurs",
                     "icon": "mdi:account-group"}
     if max_players is not None:
         joueurs_attr["max"] = max_players
+    # L'état HA est limité à 255 caractères : on tronque la liste jointe au besoin.
+    noms_state = ", ".join(names) if names else "Aucun"
+    if len(noms_state) > 250:
+        noms_state = noms_state[:249] + "…"
     return [
         ("sensor.palworld_statut", statut,
          {"friendly_name": "Palworld – Statut", "icon": "mdi:server"}),
         ("sensor.palworld_joueurs", players if players is not None else 0, joueurs_attr),
+        ("sensor.palworld_joueurs_noms", noms_state,
+         {"friendly_name": "Palworld – Joueurs connectés", "icon": "mdi:account-multiple",
+          "liste": names, "count": len(names)}),
         ("sensor.palworld_fps", fps if fps is not None else 0,
          {"friendly_name": "Palworld – FPS serveur", "unit_of_measurement": "fps",
           "icon": "mdi:speedometer"}),
