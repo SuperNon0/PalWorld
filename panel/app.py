@@ -113,6 +113,7 @@ _disk_was_low = False  # le disque était-il déjà en dessous du seuil au derni
 NOTIFY_EVENTS = {
     "server_online": "🟢 Serveur démarré",
     "server_offline": "🔴 Serveur arrêté / hors ligne",
+    "server_restart": "🔄 Serveur redémarré",
     "server_update": "⬆️ Mise à jour du serveur disponible",
     "panel_update": "⬆️ Mise à jour du panel disponible",
     "backup_done": "💾 Sauvegarde terminée",
@@ -583,6 +584,7 @@ def scheduler_loop():
                     pass
                 try:
                     systemctl("restart")
+                    notify_external_async("server_restart")
                 except RuntimeError:
                     logging.exception("Redémarrage automatique impossible")
         except Exception:
@@ -812,6 +814,8 @@ def api_action():
             except APIError:
                 pass
             systemctl(action)
+            if action == "restart":
+                notify_external_async("server_restart")
         elif action == "start":
             systemctl("start")
         elif action == "save":
