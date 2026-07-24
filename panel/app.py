@@ -92,6 +92,10 @@ STATE_DEFAULTS = {
     "notify_enabled": False,
     "notify_url": "",          # URL de base du botpanel, ex : http://192.168.0.30:8080
     "notify_slugs": {},        # {clé d'événement: slug de la notif botpanel}
+    # Home Assistant : le panel pousse des capteurs (valeurs dynamiques)
+    "ha_enabled": False,
+    "ha_url": "",              # URL de base de HA, ex : http://192.168.0.20:8123
+    "ha_token": "",            # jeton d'accès longue durée
 }
 
 app = Flask(__name__)
@@ -119,6 +123,14 @@ NOTIFY_EVENTS = {
     "backup_done": "💾 Sauvegarde terminée",
     "backup_failed": "⚠️ Sauvegarde échouée",
     "disk_low": "💽 Espace disque faible",
+}
+
+# Capteurs Home Assistant alimentés par le panel (entité → libellé lisible).
+HA_ENTITIES = {
+    "sensor.palworld_statut": "Statut (En ligne / Hors ligne)",
+    "sensor.palworld_joueurs": "Nombre de joueurs (attribut « max »)",
+    "sensor.palworld_fps": "FPS du serveur",
+    "sensor.palworld_version": "Build installé",
 }
 
 # Comptes du panel : {identifiant: hash}. Fichier inscriptible par palworld.
@@ -451,6 +463,79 @@ def _on_backup_done(returncode):
     notify_external_async("backup_done" if returncode == 0 else "backup_failed")
 
 
+# ----------------------------------------------- Home Assistant (valeurs dynamiques)
+def _ha_request(url, token, path, data=None):
+    """Appel de l'API REST de Home Assistant. Retourne (succès, détail)."""
+    body = json.dumps(data).encode() if data is not None else None
+    request = urllib.request.Request(
+        url.rstrip("/") + path, data=body, method="POST" if data is not None else "GET",
+        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json",
+                 "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return True, response.status
+    except urllib.error.HTTPError as exc:
+        detail = "jeton refusé" if exc.code == 401 else f"HTTP {exc.code}"
+        return False, detail
+    except (urllib.error.URLError, OSError, TimeoutError, ValueError) as exc:
+        return False, str(exc)
+
+
+def _ha_states():
+    """Construit la liste (entité, état, attributs) des capteurs à publier."""
+    svc = service_state()
+    statut = {"active": "En ligne", "activating": "Démarrage",
+              "inactive": "Hors ligne", "failed": "Hors ligne",
+              "deactivating": "Arrêt"}.get(svc, "Inconnu")
+    players = fps = None
+    max_players = None
+    if svc == "active":
+        try:
+            metrics = palworld_api().metrics()
+            players = metrics.get("currentplayernum")
+            max_players = metrics.get("maxplayernum")
+            fps = metrics.get("serverfps")
+        except APIError:
+            pass
+    joueurs_attr = {"friendly_name": "Palworld – Joueurs", "unit_of_measurement": "joueurs",
+                    "icon": "mdi:account-group"}
+    if max_players is not None:
+        joueurs_attr["max"] = max_players
+    return [
+        ("sensor.palworld_statut", statut,
+         {"friendly_name": "Palworld – Statut", "icon": "mdi:server"}),
+        ("sensor.palworld_joueurs", players if players is not None else 0, joueurs_attr),
+        ("sensor.palworld_fps", fps if fps is not None else 0,
+         {"friendly_name": "Palworld – FPS serveur", "unit_of_measurement": "fps",
+          "icon": "mdi:speedometer"}),
+        ("sensor.palworld_version", server_local_build() or "inconnue",
+         {"friendly_name": "Palworld – Version", "icon": "mdi:tag"}),
+    ]
+
+
+def push_ha_states():
+    """Pousse les capteurs Palworld dans Home Assistant, si configuré."""
+    with _state_lock:
+        state = load_state()
+    if not state.get("ha_enabled"):
+        return
+    url = (state.get("ha_url") or "").strip()
+    token = (state.get("ha_token") or "").strip()
+    if not url or not token:
+        return
+    for entity, value, attrs in _ha_states():
+        ok, detail = _ha_request(url, token, "/api/states/" + entity,
+                                 {"state": str(value), "attributes": attrs})
+        if not ok:
+            logging.warning("Home Assistant : publication de %s échouée (%s)", entity, detail)
+            break  # HA injoignable ou jeton invalide : inutile d'insister
+
+
+def push_ha_states_async():
+    threading.Thread(target=push_ha_states, daemon=True).start()
+
+
 def login_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
@@ -569,6 +654,7 @@ def scheduler_loop():
                 continue
             last_minute = minute
             sample_metrics()
+            push_ha_states_async()  # capteurs Palworld → Home Assistant (si activé)
             if not state["auto_restart_enabled"] or service_state() != "active":
                 continue
             target = state["auto_restart_time"]
@@ -800,6 +886,56 @@ def api_notify_test():
     if ok:
         return jsonify(ok=True, detail=detail)
     return jsonify(error=f"Échec de l'envoi : {detail}"), 502
+
+
+@app.get("/api/ha-config")
+@admin_required
+def api_ha_config_get():
+    with _state_lock:
+        state = load_state()
+    return jsonify(
+        enabled=bool(state.get("ha_enabled")),
+        url=state.get("ha_url", ""),
+        token=state.get("ha_token", ""),
+        entities=[{"entity": ent, "label": label} for ent, label in HA_ENTITIES.items()],
+    )
+
+
+@app.post("/api/ha-config")
+@admin_required
+def api_ha_config_set():
+    data = request.get_json(silent=True) or {}
+    url = str(data.get("url", "")).strip().rstrip("/")
+    if url and not VALID_NOTIFY_URL.match(url):
+        return jsonify(error="URL de Home Assistant invalide (ex : http://192.168.0.20:8123)."), 400
+    with _state_lock:
+        state = load_state()
+        state["ha_enabled"] = bool(data.get("enabled"))
+        state["ha_url"] = url
+        if "token" in data:
+            state["ha_token"] = str(data.get("token", "")).strip()
+        try:
+            save_state(state)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
+
+
+@app.post("/api/ha-config/test")
+@admin_required
+def api_ha_test():
+    with _state_lock:
+        state = load_state()
+    url = (state.get("ha_url") or "").strip()
+    token = (state.get("ha_token") or "").strip()
+    if not url or not token:
+        return jsonify(error="Renseigne l'URL et le jeton de Home Assistant, puis Enregistre."), 400
+    ok, detail = _ha_request(url, token, "/api/")  # vérifie l'accès et le jeton
+    if not ok:
+        return jsonify(error=f"Connexion à Home Assistant impossible : {detail}"), 502
+    # Accès OK : on publie les capteurs immédiatement pour qu'ils apparaissent dans HA.
+    push_ha_states()
+    return jsonify(ok=True, entities=list(HA_ENTITIES.keys()))
 
 
 @app.post("/api/action")

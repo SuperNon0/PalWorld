@@ -325,6 +325,37 @@ async function testNotify(key) {
   }
 }
 
+// ------------------------------- Home Assistant (valeurs dynamiques) — Paramètres
+async function loadHaConfig() {
+  try {
+    const c = await api("/api/ha-config");
+    $("#ha-enabled").checked = !!c.enabled;
+    $("#ha-url").value = c.url || "";
+    $("#ha-token").value = c.token || "";
+    $("#ha-entities-table tbody").innerHTML = (c.entities || [])
+      .map((e) => `<tr><td><code>${escapeHtml(e.entity)}</code></td><td>${escapeHtml(e.label)}</td></tr>`)
+      .join("");
+  } catch (err) {
+    /* silencieux */
+  }
+}
+
+async function saveHaConfig() {
+  await api("/api/ha-config", {
+    body: { enabled: $("#ha-enabled").checked, url: $("#ha-url").value.trim(), token: $("#ha-token").value.trim() },
+  });
+}
+
+async function testHa() {
+  try {
+    await saveHaConfig(); // l'URL et le jeton doivent être enregistrés avant le test
+    const r = await api("/api/ha-config/test", { method: "POST" });
+    toast("Home Assistant OK ✓ — capteurs publiés : " + (r.entities || []).join(", "));
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 // ----------------------------- adresse publique du tunnel — onglet Accès/Tunnel
 async function loadPlayit() {
   try {
@@ -872,7 +903,7 @@ function showTab(name) {
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
-  if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); loadNotifyConfig(); }
+  if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); loadNotifyConfig(); loadHaConfig(); }
   if (name === "acces") loadPlayit();
   if (name === "backups") loadBackups();
   if (name === "maintenance") loadMaintenance();
@@ -1037,6 +1068,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const btn = e.target.closest("[data-notify-test]");
     if (btn) testNotify(btn.dataset.notifyTest);
   });
+
+  // Home Assistant
+  $("#ha-save").addEventListener("click", async () => {
+    try {
+      await saveHaConfig();
+      toast("Home Assistant enregistré.");
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+  $("#ha-test").addEventListener("click", testHa);
 
   // Maintenance
   $("#check-updates").addEventListener("click", checkUpdates);

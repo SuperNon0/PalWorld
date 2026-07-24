@@ -289,6 +289,30 @@
         </div>
         <button class="btn primary" id="notify-save" style="margin-top:12px">Enregistrer les notifications</button>
       </div>
+
+      <div class="panel-block">
+        <h2>Home Assistant (valeurs dynamiques)</h2>
+        <p class="hint">Le panel publie des <b>capteurs</b> dans Home Assistant (nb de joueurs, statut, FPS…) toutes les minutes. Tu peux ensuite les afficher dans tes messages botpanel, ex. <code>{state:sensor.palworld_joueurs}</code>, ou sur tes dashboards HA. Crée un <b>jeton d'accès longue durée</b> dans HA (profil → tout en bas) et colle-le ici.</p>
+        <label class="check"><input type="checkbox" id="ha-enabled"> Activer la publication vers Home Assistant</label>
+        <div class="auto-row" style="margin-top:10px">
+          <span class="cmd-label">URL de HA</span>
+          <input type="text" id="ha-url" class="grow" placeholder="http://192.168.0.20:8123" autocomplete="off">
+        </div>
+        <div class="auto-row">
+          <span class="cmd-label">Jeton</span>
+          <input type="text" id="ha-token" class="grow" placeholder="Jeton d'accès longue durée" autocomplete="off">
+        </div>
+        <div class="auto-row">
+          <button class="btn primary" id="ha-save">Enregistrer</button>
+          <button class="btn" id="ha-test">Tester & publier</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="ha-entities-table">
+            <thead><tr><th>Capteur créé dans HA</th><th>Contenu</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section id="tab-infos" class="tab-page">
