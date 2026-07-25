@@ -952,8 +952,8 @@ function findParents() {
     (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
 }
 
-const MAX_CHAINS = 15;        // nb max de chaînes affichées
-const MAX_PARTNERS_SHOWN = 12; // nb max de partenaires listés par étape
+const MAX_CHAINS = 100;        // nb max de chaînes affichées (sécurité navigateur)
+const MAX_PARTNERS_SHOWN = 20; // nb max de partenaires listés par étape
 
 function findPath() {
   const el = $("#breed-path-result");
@@ -1006,7 +1006,21 @@ function findPath() {
   })(t, []);
 
   const stepLen = dist[t];
-  const capped = chains.length >= MAX_CHAINS;
+
+  // Nombre TOTAL de chaînes distinctes (comptage sur le DAG, sans les énumérer).
+  const order = [];
+  for (let i = 0; i < n; i++) if (dist[i] >= 0) order.push(i);
+  order.sort((a, b) => dist[a] - dist[b]);
+  const cnt = new Float64Array(n);
+  cnt[s] = 1;
+  for (const u of order) {
+    if (!cnt[u]) continue;
+    const succ = new Set(), row = C[u];
+    for (let y = 0; y < n; y++) { const v = row[y]; if (dist[v] === dist[u] + 1) succ.add(v); }
+    for (const v of succ) cnt[v] += cnt[u];
+  }
+  const total = cnt[t];
+
   const renderStep = (st) => {
     const shown = st.partners.slice(0, MAX_PARTNERS_SHOWN).map((y) => `<span class="breed-chip">${escapeHtml(N[y])}</span>`).join("");
     const extra = st.partners.length - Math.min(st.partners.length, MAX_PARTNERS_SHOWN);
@@ -1014,9 +1028,11 @@ function findPath() {
       `<span class="breed-partners">${shown}${extra > 0 ? `<span class="breed-more">+${extra}</span>` : ""}</span>` +
       `<span class="breed-arrow">→</span> <span class="breed-step-out">🥚 ${escapeHtml(N[st.to])}</span></li>`;
   };
+  const note = total > chains.length
+    ? ` <span class="hint">— ${chains.length} affichées ci-dessous (il y en a beaucoup ; prends un Pal intermédiaire comme point de départ pour cibler).</span>`
+    : ` <span class="hint">— à chaque étape, l'un des partenaires proposés suffit.</span>`;
   el.innerHTML =
-    `<p class="breed-count">${capped ? "≥ " : ""}<b>${chains.length}</b> chaîne(s) en <b>${stepLen}</b> étape(s) : ${escapeHtml(N[s])} → ${escapeHtml(N[t])}` +
-    `<span class="hint"> — à chaque étape, l'un des partenaires proposés suffit.</span></p>` +
+    `<p class="breed-count"><b>${total.toLocaleString("fr-FR")}</b> chaîne(s) en <b>${stepLen}</b> étape(s) : ${escapeHtml(N[s])} → ${escapeHtml(N[t])}${note}</p>` +
     chains.map((chain, i) =>
       `<div class="breed-chain"><div class="breed-chain-head">Option ${i + 1}</div>` +
       `<ol class="breed-steps">${chain.map(renderStep).join("")}</ol></div>`
