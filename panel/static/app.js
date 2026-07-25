@@ -952,51 +952,75 @@ function findParents() {
     (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
 }
 
+const MAX_CHAINS = 15;        // nb max de chaînes affichées
+const MAX_PARTNERS_SHOWN = 12; // nb max de partenaires listés par étape
+
 function findPath() {
   const el = $("#breed-path-result");
   const s = palIdx($("#breed-have").value);
   const t = palIdx($("#breed-want").value);
   if (s < 0 || t < 0) return void (el.innerHTML = '<p class="hint">Choisis deux Pals dans la liste.</p>');
-  const N = window.PAL_NAMES, C = window.PAL_COMBOS;
+  const N = window.PAL_NAMES, C = window.PAL_COMBOS, n = N.length;
   if (s === t) return void (el.innerHTML = `<p class="breed-count">Tu as déjà <b>${escapeHtml(N[t])}</b> 🎉</p>`);
-  // Parcours en largeur : depuis le Pal possédé, chaque accouplement mène à un nouveau Pal.
-  const prev = new Int32Array(N.length).fill(-1);
-  const partner = new Int32Array(N.length).fill(-1);
-  const seen = new Uint8Array(N.length);
-  seen[s] = 1;
-  let queue = [s], found = false;
-  while (queue.length && !found) {
+
+  // 1) Distances les plus courtes depuis le Pal possédé (BFS).
+  const dist = new Int32Array(n).fill(-1);
+  dist[s] = 0;
+  let queue = [s];
+  while (queue.length) {
     const next = [];
     for (const cur of queue) {
-      const row = C[cur];
-      for (let y = 0; y < N.length; y++) {
-        const nxt = row[y];
-        if (!seen[nxt]) {
-          seen[nxt] = 1; prev[nxt] = cur; partner[nxt] = y;
-          if (nxt === t) { found = true; break; }
-          next.push(nxt);
-        }
+      const row = C[cur], d = dist[cur] + 1;
+      for (let y = 0; y < n; y++) {
+        const v = row[y];
+        if (dist[v] === -1) { dist[v] = d; next.push(v); }
       }
-      if (found) break;
     }
     queue = next;
   }
-  if (!seen[t]) {
+  if (dist[t] === -1) {
     el.innerHTML = `<p class="hint">Impossible d'atteindre <b>${escapeHtml(N[t])}</b> par reproduction depuis <b>${escapeHtml(N[s])}</b>.</p>`;
     return;
   }
-  const steps = [];
-  for (let cur = t; cur !== s; cur = prev[cur]) {
-    steps.unshift({ from: prev[cur], with: partner[cur], to: cur });
-  }
+
+  // Tous les partenaires réalisant une étape u → v (C[u][y] === v).
+  const partnersFor = (u, v) => {
+    const out = [], row = C[u];
+    for (let y = 0; y < n; y++) if (row[y] === v) out.push(y);
+    return out;
+  };
+
+  // 2) Énumère toutes les chaînes LES PLUS COURTES (remontée dans le DAG), plafonné.
+  const chains = [];
+  (function build(v, acc) {
+    if (chains.length >= MAX_CHAINS) return;
+    if (v === s) { chains.push(acc.slice().reverse()); return; }
+    for (let u = 0; u < n && chains.length < MAX_CHAINS; u++) {
+      if (dist[u] !== dist[v] - 1) continue;
+      const partners = partnersFor(u, v);
+      if (!partners.length) continue;
+      acc.push({ from: u, to: v, partners });
+      build(u, acc);
+      acc.pop();
+    }
+  })(t, []);
+
+  const stepLen = dist[t];
+  const capped = chains.length >= MAX_CHAINS;
+  const renderStep = (st) => {
+    const shown = st.partners.slice(0, MAX_PARTNERS_SHOWN).map((y) => `<span class="breed-chip">${escapeHtml(N[y])}</span>`).join("");
+    const extra = st.partners.length - Math.min(st.partners.length, MAX_PARTNERS_SHOWN);
+    return `<li><span class="breed-step-pair">${escapeHtml(N[st.from])} +</span>` +
+      `<span class="breed-partners">${shown}${extra > 0 ? `<span class="breed-more">+${extra}</span>` : ""}</span>` +
+      `<span class="breed-arrow">→</span> <span class="breed-step-out">🥚 ${escapeHtml(N[st.to])}</span></li>`;
+  };
   el.innerHTML =
-    `<p class="breed-count"><b>${steps.length}</b> étape(s) : ${escapeHtml(N[s])} → ${escapeHtml(N[t])}</p>` +
-    `<ol class="breed-steps">` +
-    steps.map((st) =>
-      `<li><span class="breed-step-pair">${escapeHtml(N[st.from])} + ${escapeHtml(N[st.with])}</span>` +
-      ` <span class="breed-arrow">→</span> <span class="breed-step-out">🥚 ${escapeHtml(N[st.to])}</span></li>`
-    ).join("") +
-    `</ol>`;
+    `<p class="breed-count">${capped ? "≥ " : ""}<b>${chains.length}</b> chaîne(s) en <b>${stepLen}</b> étape(s) : ${escapeHtml(N[s])} → ${escapeHtml(N[t])}` +
+    `<span class="hint"> — à chaque étape, l'un des partenaires proposés suffit.</span></p>` +
+    chains.map((chain, i) =>
+      `<div class="breed-chain"><div class="breed-chain-head">Option ${i + 1}</div>` +
+      `<ol class="breed-steps">${chain.map(renderStep).join("")}</ol></div>`
+    ).join("");
 }
 
 // ---------------------------------------------------------------- onglets

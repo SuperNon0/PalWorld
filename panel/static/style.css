@@ -620,5 +620,25 @@ input::placeholder { color: var(--muted); }
   border-left: 3px solid var(--accent);
   border-radius: 10px;
 }
-.breed-step-pair { color: var(--text); }
-.breed-step-out { color: var(--green); font-weight: 500; }
+.breed-step-pair { color: var(--text); white-space: nowrap; }
+.breed-step-out { color: var(--green); font-weight: 500; white-space: nowrap; }
+.breed-chain {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.breed-chain-head {
+  font-family: var(--font-serif);
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.breed-steps li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.breed-partners { display: inline-flex; flex-wrap: wrap; gap: 5px; }
+.breed-more { color: var(--muted); font-size: 0.78rem; align-self: center; }
