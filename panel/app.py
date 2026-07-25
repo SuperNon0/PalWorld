@@ -129,8 +129,17 @@ NOTIFY_EVENTS = {
 HA_ENTITIES = {
     "sensor.palworld_statut": "Statut (En ligne / Hors ligne)",
     "sensor.palworld_joueurs": "Nombre de joueurs (attribut « max »)",
-    "sensor.palworld_joueurs_noms": "Pseudos des joueurs connectés (attribut « liste »)",
+    "sensor.palworld_joueurs_noms": "Pseudos connectés (attributs « liste », « details »)",
     "sensor.palworld_fps": "FPS du serveur",
+    "sensor.palworld_ping_moyen": "Ping moyen des joueurs (ms)",
+    "sensor.palworld_uptime": "Temps de fonctionnement (min)",
+    "sensor.palworld_jours": "Jours écoulés en jeu",
+    "sensor.palworld_ram": "RAM utilisée (Go, attribut « total »)",
+    "sensor.palworld_disque_libre": "Espace disque libre (Go)",
+    "sensor.palworld_maj_serveur": "Mise à jour serveur dispo (oui/non)",
+    "sensor.palworld_maj_panel": "Mise à jour panel dispo (oui/non)",
+    "sensor.palworld_nb_sauvegardes": "Nombre de sauvegardes",
+    "sensor.palworld_derniere_sauvegarde": "Date de la dernière sauvegarde",
     "sensor.palworld_version": "Build installé",
 }
 
@@ -483,15 +492,24 @@ def _ha_request(url, token, path, data=None):
         return False, str(exc)
 
 
+def _backup_info():
+    """(timestamp de la dernière sauvegarde | None, nombre de sauvegardes)."""
+    if not BACKUP_DIR.is_dir():
+        return None, 0
+    files = list(BACKUP_DIR.glob("palworld-*.tar.gz"))
+    latest = max((f.stat().st_mtime for f in files), default=None)
+    return latest, len(files)
+
+
 def _ha_states():
     """Construit la liste (entité, état, attributs) des capteurs à publier."""
     svc = service_state()
     statut = {"active": "En ligne", "activating": "Démarrage",
               "inactive": "Hors ligne", "failed": "Hors ligne",
               "deactivating": "Arrêt"}.get(svc, "Inconnu")
-    players = fps = None
+    players = fps = uptime = days = None
     max_players = None
-    names = []
+    plist = []
     if svc == "active":
         try:
             api = palworld_api()
@@ -499,30 +517,80 @@ def _ha_states():
             players = metrics.get("currentplayernum")
             max_players = metrics.get("maxplayernum")
             fps = metrics.get("serverfps")
-            names = [str(p.get("name") or "?") for p in api.players().get("players", [])]
+            uptime = metrics.get("uptime")
+            days = metrics.get("days")
+            plist = api.players().get("players", [])
         except APIError:
             pass
-    joueurs_attr = {"friendly_name": "Palworld – Joueurs", "unit_of_measurement": "joueurs",
-                    "icon": "mdi:account-group"}
-    if max_players is not None:
-        joueurs_attr["max"] = max_players
+
+    names = [str(p.get("name") or "?") for p in plist]
+    details = [{"nom": str(p.get("name") or "?"), "niveau": p.get("level"),
+                "ping": round(p["ping"]) if isinstance(p.get("ping"), (int, float)) else None}
+               for p in plist]
+    pings = [p["ping"] for p in plist if isinstance(p.get("ping"), (int, float))]
+    ping_moyen = round(sum(pings) / len(pings)) if pings else 0
+
+    stats = system_stats()
+    with _state_lock:
+        st = load_state()
+    latest_backup, nb_backups = _backup_info()
+
     # L'état HA est limité à 255 caractères : on tronque la liste jointe au besoin.
     noms_state = ", ".join(names) if names else "Aucun"
     if len(noms_state) > 250:
         noms_state = noms_state[:249] + "…"
-    return [
+
+    def gb(value):
+        return round(value / 1e9, 1) if value else 0
+
+    joueurs_attr = {"friendly_name": "Palworld – Joueurs", "unit_of_measurement": "joueurs",
+                    "icon": "mdi:account-group"}
+    if max_players is not None:
+        joueurs_attr["max"] = max_players
+    ram_attr = {"friendly_name": "Palworld – RAM utilisée", "unit_of_measurement": "Go",
+                "icon": "mdi:memory"}
+    if stats.get("mem_total"):
+        ram_attr["total"] = gb(stats.get("mem_total"))
+
+    entities = [
         ("sensor.palworld_statut", statut,
          {"friendly_name": "Palworld – Statut", "icon": "mdi:server"}),
         ("sensor.palworld_joueurs", players if players is not None else 0, joueurs_attr),
         ("sensor.palworld_joueurs_noms", noms_state,
          {"friendly_name": "Palworld – Joueurs connectés", "icon": "mdi:account-multiple",
-          "liste": names, "count": len(names)}),
+          "liste": names, "details": details, "count": len(names)}),
         ("sensor.palworld_fps", fps if fps is not None else 0,
          {"friendly_name": "Palworld – FPS serveur", "unit_of_measurement": "fps",
           "icon": "mdi:speedometer"}),
+        ("sensor.palworld_ping_moyen", ping_moyen,
+         {"friendly_name": "Palworld – Ping moyen", "unit_of_measurement": "ms", "icon": "mdi:wifi"}),
+        ("sensor.palworld_uptime", round(uptime / 60) if uptime else 0,
+         {"friendly_name": "Palworld – Uptime", "unit_of_measurement": "min",
+          "icon": "mdi:timer-outline"}),
+        ("sensor.palworld_jours", days if days is not None else 0,
+         {"friendly_name": "Palworld – Jours en jeu", "unit_of_measurement": "j",
+          "icon": "mdi:calendar"}),
+        ("sensor.palworld_ram", gb(stats.get("mem_used")), ram_attr),
+        ("sensor.palworld_disque_libre", gb(stats.get("disk_free")),
+         {"friendly_name": "Palworld – Disque libre", "unit_of_measurement": "Go",
+          "icon": "mdi:harddisk"}),
+        ("sensor.palworld_maj_serveur", "oui" if st.get("server_update_available") else "non",
+         {"friendly_name": "Palworld – MAJ serveur dispo", "icon": "mdi:update"}),
+        ("sensor.palworld_maj_panel", "oui" if st.get("panel_update_available") else "non",
+         {"friendly_name": "Palworld – MAJ panel dispo", "icon": "mdi:update"}),
+        ("sensor.palworld_nb_sauvegardes", nb_backups,
+         {"friendly_name": "Palworld – Sauvegardes", "unit_of_measurement": "archives",
+          "icon": "mdi:content-save"}),
         ("sensor.palworld_version", server_local_build() or "inconnue",
          {"friendly_name": "Palworld – Version", "icon": "mdi:tag"}),
     ]
+    if latest_backup:
+        entities.append((
+            "sensor.palworld_derniere_sauvegarde",
+            datetime.fromtimestamp(latest_backup).astimezone().isoformat(),
+            {"friendly_name": "Palworld – Dernière sauvegarde", "device_class": "timestamp",
+             "icon": "mdi:content-save-clock"}))
+    return entities
 
 
 def push_ha_states():

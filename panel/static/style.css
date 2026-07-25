@@ -606,3 +606,19 @@ input::placeholder { color: var(--muted); }
   color: var(--text);
   white-space: nowrap;
 }
+.breed-steps {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.breed-steps li {
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+}
+.breed-step-pair { color: var(--text); }
+.breed-step-out { color: var(--green); font-weight: 500; }

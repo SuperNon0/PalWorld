@@ -242,6 +242,18 @@
         <div id="breed-parents-result" class="breed-result"></div>
       </div>
 
+      <div class="panel-block">
+        <h2>J'ai ce Pal → je veux celui-là (chaîne)</h2>
+        <p class="hint">Indique un Pal que tu possèdes et celui que tu vises : le panel calcule la <b>suite d'accouplements la plus courte</b>. On suppose que tu peux te procurer l'autre parent de chaque étape.</p>
+        <div class="auto-row breed-row">
+          <input list="pal-list" id="breed-have" class="grow" placeholder="J'ai (ex : Lamball)" autocomplete="off">
+          <span class="breed-plus">➜</span>
+          <input list="pal-list" id="breed-want" class="grow" placeholder="Je veux (ex : Anubis)" autocomplete="off">
+          <button class="btn primary" id="breed-path">Calculer la chaîne</button>
+        </div>
+        <div id="breed-path-result" class="breed-result"></div>
+      </div>
+
       <datalist id="pal-list"></datalist>
     </section>
 

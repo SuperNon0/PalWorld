@@ -952,6 +952,53 @@ function findParents() {
     (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
 }
 
+function findPath() {
+  const el = $("#breed-path-result");
+  const s = palIdx($("#breed-have").value);
+  const t = palIdx($("#breed-want").value);
+  if (s < 0 || t < 0) return void (el.innerHTML = '<p class="hint">Choisis deux Pals dans la liste.</p>');
+  const N = window.PAL_NAMES, C = window.PAL_COMBOS;
+  if (s === t) return void (el.innerHTML = `<p class="breed-count">Tu as déjà <b>${escapeHtml(N[t])}</b> 🎉</p>`);
+  // Parcours en largeur : depuis le Pal possédé, chaque accouplement mène à un nouveau Pal.
+  const prev = new Int32Array(N.length).fill(-1);
+  const partner = new Int32Array(N.length).fill(-1);
+  const seen = new Uint8Array(N.length);
+  seen[s] = 1;
+  let queue = [s], found = false;
+  while (queue.length && !found) {
+    const next = [];
+    for (const cur of queue) {
+      const row = C[cur];
+      for (let y = 0; y < N.length; y++) {
+        const nxt = row[y];
+        if (!seen[nxt]) {
+          seen[nxt] = 1; prev[nxt] = cur; partner[nxt] = y;
+          if (nxt === t) { found = true; break; }
+          next.push(nxt);
+        }
+      }
+      if (found) break;
+    }
+    queue = next;
+  }
+  if (!seen[t]) {
+    el.innerHTML = `<p class="hint">Impossible d'atteindre <b>${escapeHtml(N[t])}</b> par reproduction depuis <b>${escapeHtml(N[s])}</b>.</p>`;
+    return;
+  }
+  const steps = [];
+  for (let cur = t; cur !== s; cur = prev[cur]) {
+    steps.unshift({ from: prev[cur], with: partner[cur], to: cur });
+  }
+  el.innerHTML =
+    `<p class="breed-count"><b>${steps.length}</b> étape(s) : ${escapeHtml(N[s])} → ${escapeHtml(N[t])}</p>` +
+    `<ol class="breed-steps">` +
+    steps.map((st) =>
+      `<li><span class="breed-step-pair">${escapeHtml(N[st.from])} + ${escapeHtml(N[st.with])}</span>` +
+      ` <span class="breed-arrow">→</span> <span class="breed-step-out">🥚 ${escapeHtml(N[st.to])}</span></li>`
+    ).join("") +
+    `</ol>`;
+}
+
 // ---------------------------------------------------------------- onglets
 function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
@@ -1130,6 +1177,8 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#breed-parent2").addEventListener("input", computeChild);
   $("#breed-find").addEventListener("click", findParents);
   $("#breed-target").addEventListener("keydown", (e) => { if (e.key === "Enter") findParents(); });
+  $("#breed-path").addEventListener("click", findPath);
+  $("#breed-want").addEventListener("keydown", (e) => { if (e.key === "Enter") findPath(); });
 
   // Home Assistant
   $("#ha-save").addEventListener("click", async () => {
