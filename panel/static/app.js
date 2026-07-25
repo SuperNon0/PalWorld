@@ -897,6 +897,61 @@ async function loadInfo() {
   }
 }
 
+// --------------------------------------------------------------- reproduction
+let palIndex = null;
+
+function initBreeding() {
+  if (palIndex || !Array.isArray(window.PAL_NAMES)) return;
+  palIndex = {};
+  window.PAL_NAMES.forEach((n, i) => (palIndex[n.toLowerCase()] = i));
+  $("#pal-list").innerHTML = window.PAL_NAMES
+    .map((n) => `<option value="${escapeHtml(n)}"></option>`)
+    .join("");
+}
+
+function palIdx(value) {
+  if (!palIndex) return -1;
+  const i = palIndex[(value || "").trim().toLowerCase()];
+  return i == null ? -1 : i;
+}
+
+function computeChild() {
+  const el = $("#breed-child-result");
+  const a = palIdx($("#breed-parent1").value);
+  const b = palIdx($("#breed-parent2").value);
+  if (a < 0 || b < 0) return void (el.innerHTML = "");
+  const child = window.PAL_NAMES[window.PAL_COMBOS[a][b]];
+  el.innerHTML = `<div class="breed-egg">
+      <span class="breed-pair">${escapeHtml(window.PAL_NAMES[a])} + ${escapeHtml(window.PAL_NAMES[b])}</span>
+      <span class="breed-arrow">→</span>
+      <span class="breed-out">🥚 ${escapeHtml(child)}</span>
+    </div>`;
+}
+
+function findParents() {
+  const el = $("#breed-parents-result");
+  const t = palIdx($("#breed-target").value);
+  if (t < 0) return void (el.innerHTML = '<p class="hint">Choisis un Pal dans la liste.</p>');
+  const N = window.PAL_NAMES, C = window.PAL_COMBOS;
+  const pairs = [];
+  for (let i = 0; i < N.length; i++) {
+    for (let j = i; j < N.length; j++) {
+      if (C[i][j] === t) pairs.push(`${N[i]} + ${N[j]}`);
+    }
+  }
+  const target = N[t];
+  if (!pairs.length) {
+    el.innerHTML = `<p class="hint">Aucun couple ne produit <b>${escapeHtml(target)}</b> (Pal non obtenable par reproduction).</p>`;
+    return;
+  }
+  const shown = pairs.slice(0, 400);
+  const extra = pairs.length - shown.length;
+  el.innerHTML =
+    `<p class="breed-count"><b>${pairs.length}</b> couple(s) produisent <b>${escapeHtml(target)}</b></p>` +
+    `<div class="breed-pairs">${shown.map((p) => `<span class="breed-chip">${escapeHtml(p)}</span>`).join("")}</div>` +
+    (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
+}
+
 // ---------------------------------------------------------------- onglets
 function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
@@ -905,6 +960,7 @@ function showTab(name) {
   if (name === "config" && !configLoaded) loadConfig();
   if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); loadNotifyConfig(); loadHaConfig(); }
   if (name === "acces") loadPlayit();
+  if (name === "reproduction") initBreeding();
   if (name === "backups") loadBackups();
   if (name === "maintenance") loadMaintenance();
   if (name === "infos") loadInfo();
@@ -1068,6 +1124,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const btn = e.target.closest("[data-notify-test]");
     if (btn) testNotify(btn.dataset.notifyTest);
   });
+
+  // Reproduction (breeding)
+  $("#breed-parent1").addEventListener("input", computeChild);
+  $("#breed-parent2").addEventListener("input", computeChild);
+  $("#breed-find").addEventListener("click", findParents);
+  $("#breed-target").addEventListener("keydown", (e) => { if (e.key === "Enter") findParents(); });
 
   // Home Assistant
   $("#ha-save").addEventListener("click", async () => {

@@ -563,3 +563,46 @@ input::placeholder { color: var(--muted); }
   .topbar { padding: 10px 12px; }
   main { padding: 14px; }
 }
+
+/* -------------------------------------------------------------- reproduction */
+.breed-row { align-items: center; gap: 10px; }
+.breed-plus { color: var(--muted); font-size: 1.3rem; font-weight: 700; }
+.breed-result { margin-top: 14px; }
+.breed-egg {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green);
+  border-radius: var(--radius);
+}
+.breed-pair { color: var(--text); font-size: 1rem; }
+.breed-arrow { color: var(--muted); font-size: 1.25rem; }
+.breed-out {
+  font-family: var(--font-serif);
+  color: var(--accent);
+  font-size: 1.4rem;
+  margin-left: auto;
+}
+.breed-count { margin: 0 0 12px; color: var(--text); }
+.breed-count b { color: var(--accent); }
+.breed-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.breed-chip {
+  padding: 5px 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: nowrap;
+}
