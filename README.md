@@ -42,6 +42,19 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
   est disponible, ou en cas d'espace disque faible
 - 🧩 **Onglet Maintenance** : met à jour le serveur de jeu (SteamCMD) **et le
   panel lui-même** (git pull + redémarrage) en un clic
+- 🥚 **Onglet Reproduction** : calcule l'enfant de deux Pals, tous les couples
+  qui produisent un Pal donné, et **toutes les chaînes d'accouplements** pour
+  atteindre un Pal cible depuis un Pal possédé (hors ligne, 288 Pals)
+- 💬 **Notifications Discord** : le panel prévient un *botpanel* à chaque
+  événement (serveur démarré/arrêté/redémarré, mise à jour, sauvegarde, disque)
+- 🏠 **Home Assistant** : publication de capteurs (joueurs, FPS, RAM…) vers HA,
+  et **intégration HACS** dédiée (voir `custom_components/palworld_panel/`)
+
+## Home Assistant (intégration HACS)
+
+Une intégration Home Assistant installable via **HACS** crée un appareil
+« Palworld » avec tous les capteurs du serveur. Voir le guide :
+[`custom_components/palworld_panel/README.md`](custom_components/palworld_panel/README.md).
 
 ## Prérequis (VM Proxmox recommandée)
 

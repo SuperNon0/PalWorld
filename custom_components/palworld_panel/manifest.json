@@ -1,0 +1,12 @@
+{
+  "domain": "palworld_panel",
+  "name": "Palworld Panel",
+  "codeowners": ["@SuperNon0"],
+  "config_flow": true,
+  "documentation": "https://github.com/SuperNon0/PalWorld",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/SuperNon0/PalWorld/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

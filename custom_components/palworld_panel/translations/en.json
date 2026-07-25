@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Palworld Panel",
+        "description": "Connect Home Assistant to your Palworld admin panel.",
+        "data": {
+          "url": "Panel URL",
+          "username": "Panel username",
+          "password": "Panel password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the panel at this URL.",
+      "invalid_auth": "Incorrect username or password."
+    },
+    "abort": {
+      "already_configured": "This panel is already configured."
+    }
+  }
+}

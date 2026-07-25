@@ -1017,6 +1017,18 @@ def api_ha_test():
     return jsonify(ok=True, entities=list(HA_ENTITIES.keys()))
 
 
+@app.get("/api/ha/stats")
+@login_required
+def api_ha_stats():
+    """Données des capteurs, lues par l'intégration Home Assistant (HACS).
+
+    L'intégration se connecte avec un compte du panel (session) puis interroge
+    cet endpoint. C'est le pendant « pull » de la publication « push » ci-dessus.
+    """
+    return jsonify(entities=[{"entity": ent, "state": state, "attributes": attrs}
+                             for ent, state, attrs in _ha_states()])
+
+
 @app.post("/api/action")
 @login_required
 def api_action():
