@@ -608,20 +608,41 @@ input::placeholder { color: var(--muted); }
 }
 .breed-steps {
   margin: 0;
-  padding-left: 22px;
+  padding-left: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
-.breed-steps li {
-  padding: 10px 14px;
+.breed-step {
+  padding: 12px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: 10px;
 }
-.breed-step-pair { color: var(--text); white-space: nowrap; }
-.breed-step-out { color: var(--green); font-weight: 500; white-space: nowrap; }
+.breed-step-out {
+  color: var(--green);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.breed-step-out b { color: var(--green); }
+.breed-recipe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.breed-parent { color: var(--text); font-weight: 600; }
+.breed-op { color: var(--muted); font-weight: 700; }
+.breed-choice {
+  color: var(--accent);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.breed-partners { display: inline-flex; flex-wrap: wrap; gap: 5px; }
+.breed-more-inline { color: var(--muted); font-size: 0.78rem; align-self: center; }
 .breed-chain {
   margin-top: 12px;
   padding: 12px 14px;
@@ -634,11 +655,3 @@ input::placeholder { color: var(--muted); }
   color: var(--accent);
   margin-bottom: 8px;
 }
-.breed-steps li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.breed-partners { display: inline-flex; flex-wrap: wrap; gap: 5px; }
-.breed-more { color: var(--muted); font-size: 0.78rem; align-self: center; }

@@ -1023,12 +1023,17 @@ function findPath() {
   }
   const total = cnt[t];
 
-  const renderStep = (st) => {
+  const renderStep = (st, i) => {
     const shown = st.partners.slice(0, MAX_PARTNERS_SHOWN).map((y) => `<span class="breed-chip">${escapeHtml(N[y])}</span>`).join("");
     const extra = st.partners.length - Math.min(st.partners.length, MAX_PARTNERS_SHOWN);
-    return `<li><span class="breed-step-pair">${escapeHtml(N[st.from])} +</span>` +
-      `<span class="breed-partners">${shown}${extra > 0 ? `<span class="breed-more">+${extra}</span>` : ""}</span>` +
-      `<span class="breed-arrow">→</span> <span class="breed-step-out">🥚 ${escapeHtml(N[st.to])}</span></li>`;
+    const many = st.partners.length > 1;
+    return `<li class="breed-step">` +
+      `<div class="breed-step-out">Étape ${i + 1} → 🥚 <b>${escapeHtml(N[st.to])}</b></div>` +
+      `<div class="breed-recipe">` +
+      `<span class="breed-parent">${escapeHtml(N[st.from])}</span><span class="breed-op">+</span>` +
+      (many ? `<span class="breed-choice">au choix&nbsp;:</span>` : "") +
+      `<span class="breed-partners">${shown}${extra > 0 ? `<span class="breed-more-inline">+${extra} autres</span>` : ""}</span>` +
+      `</div></li>`;
   };
   const note = total > chains.length
     ? ` <span class="hint">— ${chains.length} consultables (il y en a beaucoup ; pars d'un Pal intermédiaire pour cibler).</span>`
