@@ -952,8 +952,10 @@ function findParents() {
     (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
 }
 
-const MAX_CHAINS = 100;        // nb max de chaînes affichées (sécurité navigateur)
+const MAX_CHAINS = 100;        // nb max de chaînes calculées (sécurité navigateur)
 const MAX_PARTNERS_SHOWN = 20; // nb max de partenaires listés par étape
+const CHAINS_INITIAL = 5;      // chaînes visibles d'emblée
+const CHAINS_MORE = 5;         // chaînes révélées à chaque « Voir plus »
 
 function findPath() {
   const el = $("#breed-path-result");
@@ -1029,14 +1031,19 @@ function findPath() {
       `<span class="breed-arrow">→</span> <span class="breed-step-out">🥚 ${escapeHtml(N[st.to])}</span></li>`;
   };
   const note = total > chains.length
-    ? ` <span class="hint">— ${chains.length} affichées ci-dessous (il y en a beaucoup ; prends un Pal intermédiaire comme point de départ pour cibler).</span>`
+    ? ` <span class="hint">— ${chains.length} consultables (il y en a beaucoup ; pars d'un Pal intermédiaire pour cibler).</span>`
     : ` <span class="hint">— à chaque étape, l'un des partenaires proposés suffit.</span>`;
+  const chainsHtml = chains.map((chain, i) =>
+    `<div class="breed-chain"${i >= CHAINS_INITIAL ? " hidden" : ""}><div class="breed-chain-head">Option ${i + 1}</div>` +
+    `<ol class="breed-steps">${chain.map(renderStep).join("")}</ol></div>`
+  ).join("");
+  const remaining = chains.length - Math.min(chains.length, CHAINS_INITIAL);
+  const moreBtn = remaining > 0
+    ? `<button class="btn" id="breed-more" style="margin-top:12px">Voir ${Math.min(CHAINS_MORE, remaining)} de plus (${remaining} restantes)</button>`
+    : "";
   el.innerHTML =
     `<p class="breed-count"><b>${total.toLocaleString("fr-FR")}</b> chaîne(s) en <b>${stepLen}</b> étape(s) : ${escapeHtml(N[s])} → ${escapeHtml(N[t])}${note}</p>` +
-    chains.map((chain, i) =>
-      `<div class="breed-chain"><div class="breed-chain-head">Option ${i + 1}</div>` +
-      `<ol class="breed-steps">${chain.map(renderStep).join("")}</ol></div>`
-    ).join("");
+    chainsHtml + moreBtn;
 }
 
 // ---------------------------------------------------------------- onglets
@@ -1219,6 +1226,16 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#breed-target").addEventListener("keydown", (e) => { if (e.key === "Enter") findParents(); });
   $("#breed-path").addEventListener("click", findPath);
   $("#breed-want").addEventListener("keydown", (e) => { if (e.key === "Enter") findPath(); });
+  $("#breed-path-result").addEventListener("click", (e) => {
+    const btn = e.target.closest("#breed-more");
+    if (!btn) return;
+    const chains = [...document.querySelectorAll("#breed-path-result .breed-chain")];
+    const shown = chains.filter((c) => !c.hidden).length;
+    for (let i = shown; i < shown + CHAINS_MORE && i < chains.length; i++) chains[i].hidden = false;
+    const rest = chains.filter((c) => c.hidden).length;
+    if (rest === 0) btn.remove();
+    else btn.textContent = `Voir ${Math.min(CHAINS_MORE, rest)} de plus (${rest} restantes)`;
+  });
 
   // Home Assistant
   $("#ha-save").addEventListener("click", async () => {
