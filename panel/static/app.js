@@ -915,6 +915,13 @@ function palIdx(value) {
   return i == null ? -1 : i;
 }
 
+// Petite vignette du Pal (wiki Fandom) ; vide si indisponible. Les images
+// cassées (hors ligne / 404) sont retirées par le gestionnaire d'erreur global.
+function palIcon(name) {
+  const url = window.PAL_IMAGES && window.PAL_IMAGES[name];
+  return url ? `<img class="pal-ico" src="${escapeHtml(url)}" alt="" loading="lazy">` : "";
+}
+
 function computeChild() {
   const el = $("#breed-child-result");
   const a = palIdx($("#breed-parent1").value);
@@ -922,9 +929,9 @@ function computeChild() {
   if (a < 0 || b < 0) return void (el.innerHTML = "");
   const child = window.PAL_NAMES[window.PAL_COMBOS[a][b]];
   el.innerHTML = `<div class="breed-egg">
-      <span class="breed-pair">${escapeHtml(window.PAL_NAMES[a])} + ${escapeHtml(window.PAL_NAMES[b])}</span>
+      <span class="breed-pair">${palIcon(window.PAL_NAMES[a])}${escapeHtml(window.PAL_NAMES[a])} + ${palIcon(window.PAL_NAMES[b])}${escapeHtml(window.PAL_NAMES[b])}</span>
       <span class="breed-arrow">→</span>
-      <span class="breed-out">🥚 ${escapeHtml(child)}</span>
+      <span class="breed-out">${palIcon(child)}${escapeHtml(child)}</span>
     </div>`;
 }
 
@@ -936,7 +943,7 @@ function findParents() {
   const pairs = [];
   for (let i = 0; i < N.length; i++) {
     for (let j = i; j < N.length; j++) {
-      if (C[i][j] === t) pairs.push(`${N[i]} + ${N[j]}`);
+      if (C[i][j] === t) pairs.push([N[i], N[j]]);
     }
   }
   const target = N[t];
@@ -948,7 +955,7 @@ function findParents() {
   const extra = pairs.length - shown.length;
   el.innerHTML =
     `<p class="breed-count"><b>${pairs.length}</b> couple(s) produisent <b>${escapeHtml(target)}</b></p>` +
-    `<div class="breed-pairs">${shown.map((p) => `<span class="breed-chip">${escapeHtml(p)}</span>`).join("")}</div>` +
+    `<div class="breed-pairs">${shown.map(([a, b]) => `<span class="breed-chip">${palIcon(a)}${escapeHtml(a)} + ${palIcon(b)}${escapeHtml(b)}</span>`).join("")}</div>` +
     (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
 }
 
@@ -1024,13 +1031,13 @@ function findPath() {
   const total = cnt[t];
 
   const renderStep = (st, i) => {
-    const shown = st.partners.slice(0, MAX_PARTNERS_SHOWN).map((y) => `<span class="breed-chip">${escapeHtml(N[y])}</span>`).join("");
+    const shown = st.partners.slice(0, MAX_PARTNERS_SHOWN).map((y) => `<span class="breed-chip">${palIcon(N[y])}${escapeHtml(N[y])}</span>`).join("");
     const extra = st.partners.length - Math.min(st.partners.length, MAX_PARTNERS_SHOWN);
     const many = st.partners.length > 1;
     return `<li class="breed-step">` +
-      `<div class="breed-step-out">Étape ${i + 1} → 🥚 <b>${escapeHtml(N[st.to])}</b></div>` +
+      `<div class="breed-step-out">Étape ${i + 1} → ${palIcon(N[st.to])}<b>${escapeHtml(N[st.to])}</b></div>` +
       `<div class="breed-recipe">` +
-      `<span class="breed-parent">${escapeHtml(N[st.from])}</span><span class="breed-op">+</span>` +
+      `<span class="breed-parent">${palIcon(N[st.from])}${escapeHtml(N[st.from])}</span><span class="breed-op">+</span>` +
       (many ? `<span class="breed-choice">au choix&nbsp;:</span>` : "") +
       `<span class="breed-partners">${shown}${extra > 0 ? `<span class="breed-more-inline">+${extra} autres</span>` : ""}</span>` +
       `</div></li>`;
@@ -1231,6 +1238,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#breed-target").addEventListener("keydown", (e) => { if (e.key === "Enter") findParents(); });
   $("#breed-path").addEventListener("click", findPath);
   $("#breed-want").addEventListener("keydown", (e) => { if (e.key === "Enter") findPath(); });
+  // Vignette de Pal indisponible (hors ligne / 404) : on la retire, le nom reste.
+  document.addEventListener("error", (e) => {
+    const img = e.target;
+    if (img && img.tagName === "IMG" && img.classList.contains("pal-ico")) img.remove();
+  }, true);
   $("#breed-path-result").addEventListener("click", (e) => {
     const btn = e.target.closest("#breed-more");
     if (!btn) return;

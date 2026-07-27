@@ -598,7 +598,10 @@ input::placeholder { color: var(--muted); }
   padding: 2px;
 }
 .breed-chip {
-  padding: 5px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px 4px 5px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -606,6 +609,20 @@ input::placeholder { color: var(--muted); }
   color: var(--text);
   white-space: nowrap;
 }
+/* Vignette d'un Pal (à côté du nom) */
+.pal-ico {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  vertical-align: middle;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  flex: none;
+}
+.breed-pair .pal-ico,
+.breed-out .pal-ico { margin-right: 4px; }
+.breed-parent { display: inline-flex; align-items: center; gap: 5px; }
+.breed-step-out { display: inline-flex; align-items: center; gap: 6px; }
 .breed-steps {
   margin: 0;
   padding-left: 0;
