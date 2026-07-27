@@ -901,6 +901,7 @@ async function loadInfo() {
 let palIndex = null;
 let lastCouple = null;      // dernier couple calculé (pour le favori)
 let lastPathResult = null;  // dernières chaînes calculées (noms), pour les favoris
+let lastParents = null;     // derniers couples « enfant → parents » (noms), pour les favoris
 
 function initBreeding() {
   if (palIndex || !Array.isArray(window.PAL_NAMES)) return;
@@ -941,6 +942,7 @@ function computeChild() {
 
 function findParents() {
   const el = $("#breed-parents-result");
+  lastParents = null;
   const t = palIdx($("#breed-target").value);
   if (t < 0) return void (el.innerHTML = '<p class="hint">Choisis un Pal dans la liste.</p>');
   const N = window.PAL_NAMES, C = window.PAL_COMBOS;
@@ -957,9 +959,10 @@ function findParents() {
   }
   const shown = pairs.slice(0, 400);
   const extra = pairs.length - shown.length;
+  lastParents = { child: target, pairs: shown };
   el.innerHTML =
-    `<p class="breed-count"><b>${pairs.length}</b> couple(s) produisent <b>${escapeHtml(target)}</b></p>` +
-    `<div class="breed-pairs">${shown.map(([a, b]) => `<span class="breed-chip">${palIcon(a)}${escapeHtml(a)} + ${palIcon(b)}${escapeHtml(b)}</span>`).join("")}</div>` +
+    `<p class="breed-count"><b>${pairs.length}</b> couple(s) produisent <b>${escapeHtml(target)}</b> <span class="hint">— ⭐ pour enregistrer un couple.</span></p>` +
+    `<div class="breed-pairs">${shown.map(([a, b], k) => `<span class="breed-chip">${palIcon(a)}${escapeHtml(a)} + ${palIcon(b)}${escapeHtml(b)}<button class="fav-star" data-fav-couple-idx="${k}" title="Ajouter aux favoris">☆</button></span>`).join("")}</div>` +
     (extra > 0 ? `<p class="hint">… et ${extra} autres couples.</p>` : "");
 }
 
@@ -1330,6 +1333,15 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#breed-child-result").addEventListener("click", (e) => {
     if (e.target.closest("#breed-fav-couple") && lastCouple) {
       addFavorite({ type: "couple", ...lastCouple });
+    }
+  });
+
+  // Favori d'un couple depuis la liste « enfant → parents »
+  $("#breed-parents-result").addEventListener("click", (e) => {
+    const star = e.target.closest("[data-fav-couple-idx]");
+    if (star && lastParents) {
+      const pair = lastParents.pairs[+star.dataset.favCoupleIdx];
+      if (pair) addFavorite({ type: "couple", a: pair[0], b: pair[1], child: lastParents.child });
     }
   });
 

@@ -698,3 +698,13 @@ input::placeholder { color: var(--muted); }
 }
 .fav-main { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .fav-out { color: var(--green); }
+.fav-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0 0 4px;
+}
+.fav-star:hover { color: var(--accent-hover); }
