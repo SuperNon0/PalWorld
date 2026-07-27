@@ -69,6 +69,9 @@ VALID_PLAYIT = re.compile(r"^[A-Za-z0-9.\-]{1,110}(?::\d{1,5})?$")
 VALID_NOTIFY_URL = re.compile(r"^https?://[A-Za-z0-9.\-]{1,110}(?::\d{1,5})?$")
 # Slug d'une notification botpanel.
 VALID_SLUG = re.compile(r"^[A-Za-z0-9_.\-]{1,64}$")
+# Nom de Pal (favoris de reproduction) : lettres, chiffres, espace et ponctuation simple.
+VALID_PAL_NAME = re.compile(r"^[A-Za-z0-9 .:_'\-]{1,40}$")
+MAX_FAVORITES = 200
 
 STATE_DEFAULTS = {
     "auto_backup_enabled": False,
@@ -96,6 +99,8 @@ STATE_DEFAULTS = {
     "ha_enabled": False,
     "ha_url": "",              # URL de base de HA, ex : http://192.168.0.20:8123
     "ha_token": "",            # jeton d'accès longue durée
+    # Favoris de reproduction (couples + chaînes enregistrés par les joueurs)
+    "breeding_favorites": [],
 }
 
 app = Flask(__name__)
@@ -1027,6 +1032,91 @@ def api_ha_stats():
     """
     return jsonify(entities=[{"entity": ent, "state": state, "attributes": attrs}
                              for ent, state, attrs in _ha_states()])
+
+
+# ------------------------------------------------ favoris de reproduction
+def _clean_pal(value):
+    value = str(value).strip()
+    return value if VALID_PAL_NAME.match(value) else ""
+
+
+def _fav_signature(item):
+    """Signature de contenu pour éviter les doublons."""
+    if item["type"] == "couple":
+        a, b = sorted([item["a"], item["b"]])
+        return ("couple", a, b, item["child"])
+    return ("chain", item["have"], item["want"], json.dumps(item["steps"], sort_keys=True))
+
+
+@app.get("/api/breeding/favorites")
+@login_required
+def api_breeding_favorites_get():
+    with _state_lock:
+        favorites = load_state().get("breeding_favorites", [])
+    return jsonify(favorites=favorites)
+
+
+@app.post("/api/breeding/favorites")
+@login_required
+def api_breeding_favorites_add():
+    data = request.get_json(silent=True) or {}
+    kind = data.get("type")
+    item = {"id": str(time.time_ns())}
+    if kind == "couple":
+        a, b, child = _clean_pal(data.get("a")), _clean_pal(data.get("b")), _clean_pal(data.get("child"))
+        if not (a and b and child):
+            return jsonify(error="Couple invalide."), 400
+        item.update(type="couple", a=a, b=b, child=child)
+    elif kind == "chain":
+        have, want = _clean_pal(data.get("have")), _clean_pal(data.get("want"))
+        raw_steps = data.get("steps")
+        if not (have and want) or not isinstance(raw_steps, list) or not raw_steps:
+            return jsonify(error="Chaîne invalide."), 400
+        steps = []
+        for raw in raw_steps[:12]:
+            raw = raw or {}
+            frm, to = _clean_pal(raw.get("from")), _clean_pal(raw.get("to"))
+            partners = [p for p in (_clean_pal(x) for x in (raw.get("partners") or [])[:60]) if p]
+            if not (frm and to and partners):
+                return jsonify(error="Étape invalide."), 400
+            steps.append({"from": frm, "to": to, "partners": partners})
+        item.update(type="chain", have=have, want=want, steps=steps)
+    else:
+        return jsonify(error="Type de favori inconnu."), 400
+
+    with _state_lock:
+        state = load_state()
+        favorites = state.get("breeding_favorites", [])
+        signature = _fav_signature(item)
+        for existing in favorites:
+            if _fav_signature(existing) == signature:
+                return jsonify(ok=True, id=existing["id"], duplicate=True)
+        if len(favorites) >= MAX_FAVORITES:
+            return jsonify(error=f"Limite de {MAX_FAVORITES} favoris atteinte."), 400
+        favorites.append(item)
+        state["breeding_favorites"] = favorites
+        try:
+            save_state(state)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True, id=item["id"])
+
+
+@app.delete("/api/breeding/favorites/<fav_id>")
+@login_required
+def api_breeding_favorites_delete(fav_id):
+    with _state_lock:
+        state = load_state()
+        favorites = state.get("breeding_favorites", [])
+        remaining = [f for f in favorites if f.get("id") != fav_id]
+        if len(remaining) == len(favorites):
+            return jsonify(error="Favori introuvable."), 404
+        state["breeding_favorites"] = remaining
+        try:
+            save_state(state)
+        except OSError as exc:
+            return jsonify(error=f"Écriture impossible : {exc}"), 500
+    return jsonify(ok=True)
 
 
 @app.post("/api/action")

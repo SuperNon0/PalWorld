@@ -899,6 +899,8 @@ async function loadInfo() {
 
 // --------------------------------------------------------------- reproduction
 let palIndex = null;
+let lastCouple = null;      // dernier couple calculé (pour le favori)
+let lastPathResult = null;  // dernières chaînes calculées (noms), pour les favoris
 
 function initBreeding() {
   if (palIndex || !Array.isArray(window.PAL_NAMES)) return;
@@ -926,13 +928,15 @@ function computeChild() {
   const el = $("#breed-child-result");
   const a = palIdx($("#breed-parent1").value);
   const b = palIdx($("#breed-parent2").value);
-  if (a < 0 || b < 0) return void (el.innerHTML = "");
+  if (a < 0 || b < 0) { lastCouple = null; return void (el.innerHTML = ""); }
   const child = window.PAL_NAMES[window.PAL_COMBOS[a][b]];
+  lastCouple = { a: window.PAL_NAMES[a], b: window.PAL_NAMES[b], child };
   el.innerHTML = `<div class="breed-egg">
       <span class="breed-pair">${palIcon(window.PAL_NAMES[a])}${escapeHtml(window.PAL_NAMES[a])} + ${palIcon(window.PAL_NAMES[b])}${escapeHtml(window.PAL_NAMES[b])}</span>
       <span class="breed-arrow">→</span>
       <span class="breed-out">${palIcon(child)}${escapeHtml(child)}</span>
-    </div>`;
+    </div>
+    <button class="btn small" id="breed-fav-couple" style="margin-top:10px">⭐ Ajouter aux favoris</button>`;
 }
 
 function findParents() {
@@ -966,6 +970,7 @@ const CHAINS_MORE = 5;         // chaînes révélées à chaque « Voir plus »
 
 function findPath() {
   const el = $("#breed-path-result");
+  lastPathResult = null;
   const s = palIdx($("#breed-have").value);
   const t = palIdx($("#breed-want").value);
   if (s < 0 || t < 0) return void (el.innerHTML = '<p class="hint">Choisis deux Pals dans la liste.</p>');
@@ -1045,8 +1050,15 @@ function findPath() {
   const note = total > chains.length
     ? ` <span class="hint">— ${chains.length} consultables (il y en a beaucoup ; pars d'un Pal intermédiaire pour cibler).</span>`
     : ` <span class="hint">— à chaque étape, l'un des partenaires proposés suffit.</span>`;
+  lastPathResult = {
+    have: N[s], want: N[t],
+    chains: chains.map((chain) => chain.map((st) => ({
+      from: N[st.from], to: N[st.to], partners: st.partners.map((y) => N[y]),
+    }))),
+  };
   const chainsHtml = chains.map((chain, i) =>
-    `<div class="breed-chain"${i >= CHAINS_INITIAL ? " hidden" : ""}><div class="breed-chain-head">Option ${i + 1}</div>` +
+    `<div class="breed-chain"${i >= CHAINS_INITIAL ? " hidden" : ""}>` +
+    `<div class="breed-chain-head">Option ${i + 1} <button class="btn small" data-fav-chain="${i}">⭐ Favori</button></div>` +
     `<ol class="breed-steps">${chain.map(renderStep).join("")}</ol></div>`
   ).join("");
   const remaining = chains.length - Math.min(chains.length, CHAINS_INITIAL);
@@ -1058,6 +1070,60 @@ function findPath() {
     chainsHtml + moreBtn;
 }
 
+// ------------------------------------------------------- favoris de reproduction
+function favStepsHtml(steps) {
+  return `<ol class="breed-steps">` + steps.map((st, i) =>
+    `<li class="breed-step"><div class="breed-step-out">Étape ${i + 1} → ${palIcon(st.to)}<b>${escapeHtml(st.to)}</b></div>` +
+    `<div class="breed-recipe"><span class="breed-parent">${palIcon(st.from)}${escapeHtml(st.from)}</span><span class="breed-op">+</span>` +
+    (st.partners.length > 1 ? `<span class="breed-choice">au choix&nbsp;:</span>` : "") +
+    `<span class="breed-partners">` +
+    st.partners.slice(0, MAX_PARTNERS_SHOWN).map((p) => `<span class="breed-chip">${palIcon(p)}${escapeHtml(p)}</span>`).join("") +
+    (st.partners.length > MAX_PARTNERS_SHOWN ? `<span class="breed-more-inline">+${st.partners.length - MAX_PARTNERS_SHOWN} autres</span>` : "") +
+    `</span></div></li>`
+  ).join("") + `</ol>`;
+}
+
+function renderFavorite(f) {
+  const del = `<button class="btn small danger" data-fav-del="${escapeHtml(f.id)}">Retirer</button>`;
+  if (f.type === "couple") {
+    return `<div class="fav-item"><span class="fav-main">${palIcon(f.a)}${escapeHtml(f.a)} <span class="breed-op">+</span> ${palIcon(f.b)}${escapeHtml(f.b)} <span class="breed-arrow">→</span> ${palIcon(f.child)}<b class="fav-out">${escapeHtml(f.child)}</b></span>${del}</div>`;
+  }
+  return `<div class="fav-item fav-chain"><div class="fav-head"><span class="fav-main">${palIcon(f.have)}${escapeHtml(f.have)} <span class="breed-arrow">→</span> ${palIcon(f.want)}<b class="fav-out">${escapeHtml(f.want)}</b></span>${del}</div>${favStepsHtml(f.steps || [])}</div>`;
+}
+
+async function loadFavorites() {
+  const el = $("#breed-favorites");
+  try {
+    const d = await api("/api/breeding/favorites");
+    if (!d.favorites.length) {
+      el.innerHTML = '<p class="hint">Aucun favori. Clique sur ⭐ sur un résultat pour le retrouver ici.</p>';
+      return;
+    }
+    el.innerHTML = d.favorites.slice().reverse().map(renderFavorite).join("");
+  } catch (err) {
+    el.innerHTML = "";
+  }
+}
+
+async function addFavorite(payload) {
+  try {
+    const r = await api("/api/breeding/favorites", { body: payload });
+    toast(r.duplicate ? "Déjà dans tes favoris." : "Ajouté aux favoris ⭐");
+    loadFavorites();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function removeFavorite(id) {
+  try {
+    await api(`/api/breeding/favorites/${encodeURIComponent(id)}`, { method: "DELETE" });
+    loadFavorites();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 // ---------------------------------------------------------------- onglets
 function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
@@ -1066,7 +1132,7 @@ function showTab(name) {
   if (name === "config" && !configLoaded) loadConfig();
   if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); loadNotifyConfig(); loadHaConfig(); }
   if (name === "acces") loadPlayit();
-  if (name === "reproduction") initBreeding();
+  if (name === "reproduction") { initBreeding(); loadFavorites(); }
   if (name === "backups") loadBackups();
   if (name === "maintenance") loadMaintenance();
   if (name === "infos") loadInfo();
@@ -1244,6 +1310,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (img && img.tagName === "IMG" && img.classList.contains("pal-ico")) img.remove();
   }, true);
   $("#breed-path-result").addEventListener("click", (e) => {
+    const favBtn = e.target.closest("[data-fav-chain]");
+    if (favBtn && lastPathResult) {
+      const chain = lastPathResult.chains[+favBtn.dataset.favChain];
+      if (chain) addFavorite({ type: "chain", have: lastPathResult.have, want: lastPathResult.want, steps: chain });
+      return;
+    }
     const btn = e.target.closest("#breed-more");
     if (!btn) return;
     const chains = [...document.querySelectorAll("#breed-path-result .breed-chain")];
@@ -1252,6 +1324,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const rest = chains.filter((c) => c.hidden).length;
     if (rest === 0) btn.remove();
     else btn.textContent = `Voir ${Math.min(CHAINS_MORE, rest)} de plus (${rest} restantes)`;
+  });
+
+  // Favori d'un couple (mode « deux parents → enfant »)
+  $("#breed-child-result").addEventListener("click", (e) => {
+    if (e.target.closest("#breed-fav-couple") && lastCouple) {
+      addFavorite({ type: "couple", ...lastCouple });
+    }
+  });
+
+  // Retrait d'un favori depuis la liste
+  $("#breed-favorites").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-fav-del]");
+    if (btn) removeFavorite(btn.dataset.favDel);
   });
 
   // Home Assistant

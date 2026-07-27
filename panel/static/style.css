@@ -671,4 +671,30 @@ input::placeholder { color: var(--muted); }
   font-family: var(--font-serif);
   color: var(--accent);
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+/* Favoris de reproduction */
+.fav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+}
+.fav-item.fav-chain { display: block; }
+.fav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.fav-main { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fav-out { color: var(--green); }
