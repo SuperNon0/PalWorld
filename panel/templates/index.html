@@ -292,19 +292,22 @@
       <p class="hint">🔒 Réservé au compte <b>admin</b>.</p>
 
       <div class="panel-block">
-        <h2>Comptes du panel</h2>
-        <p class="hint">Gère les comptes qui peuvent se connecter au panel.</p>
-        <div class="table-wrap">
-          <table class="table" id="users-table">
-            <thead><tr><th>Identifiant</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
+        <h2>Mot de passe du panel</h2>
+        <p class="hint">Le panel a un seul compte (<b>admin</b>). Change ici son mot de passe (8 caractères minimum). C'est ce mot de passe qui protège l'accès direct sur le réseau local.</p>
+        <div class="auto-row">
+          <input type="password" id="admin-pw" class="grow" placeholder="Nouveau mot de passe" autocomplete="new-password">
+          <button class="btn primary" id="admin-pw-save">Changer le mot de passe</button>
         </div>
-        <div class="auto-row" style="margin-top:14px">
-          <input type="text" id="new-user" placeholder="Nouvel identifiant" autocomplete="off">
-          <input type="password" id="new-user-pw" placeholder="Mot de passe (8 min.)" autocomplete="new-password">
-          <button class="btn primary" id="user-create">Créer le compte</button>
+      </div>
+
+      <div class="panel-block">
+        <h2>Connexion Google (Cloudflare)</h2>
+        <p class="hint">Si tu accèdes au panel via <b>Cloudflare</b> (login Google), tu es connecté <b>automatiquement</b>, sans ressaisir le mot de passe. En accès direct sur le LAN, le mot de passe ci-dessus reste demandé. Tu peux limiter l'auto-connexion à <b>ton</b> email Google (laisse vide pour accepter tout email déjà validé par Cloudflare).</p>
+        <div class="auto-row">
+          <input type="text" id="cf-email" class="grow" placeholder="ton.email@gmail.com (optionnel)" autocomplete="off">
+          <button class="btn primary" id="cf-email-save">Enregistrer</button>
         </div>
+        <p class="hint" id="cf-login-state"></p>
       </div>
 
       <div class="panel-block">

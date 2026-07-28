@@ -13,8 +13,9 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 - Sauvegarde du monde forcée avant chaque arrêt/redémarrage
 
 **Panel web** (service systemd `palworld-panel`)
-- 🔐 **Comptes multiples** : connexion par identifiant + mot de passe ;
-  création / suppression de comptes et changement de mot de passe depuis le panel
+- 🔐 **Connexion** : panel mono-compte (`admin`) protégé par mot de passe ;
+  **auto-login via Cloudflare Access** (login Google) quand on passe par le tunnel,
+  mot de passe conservé pour l'accès direct LAN
 - 📝 **Descriptions intégrées** : chaque paramètre de `PalWorldSettings.ini`
   est expliqué en français dans l'onglet Configuration
 - ℹ️ **Page Infos (compte admin uniquement)** : récapitule tout — adresse du

@@ -101,6 +101,8 @@ STATE_DEFAULTS = {
     "ha_token": "",            # jeton d'accès longue durée
     # Favoris de reproduction (couples + chaînes enregistrés par les joueurs)
     "breeding_favorites": [],
+    # Connexion : email Google autorisé en auto-login via Cloudflare Access (vide = tout email vérifié par Cloudflare)
+    "cf_access_email": "",
 }
 
 app = Flask(__name__)
@@ -148,9 +150,8 @@ HA_ENTITIES = {
     "sensor.palworld_version": "Build installé",
 }
 
-# Comptes du panel : {identifiant: hash}. Fichier inscriptible par palworld.
+# Compte du panel : {identifiant: hash}. Fichier inscriptible par palworld.
 USERS_FILE = Path(CONFIG.get("users_file", str(STATE_FILE.parent / "panel-users.json")))
-VALID_USERNAME = re.compile(r"^[A-Za-z0-9_.\-]{3,32}$")
 # Identifiants système (accès VM), écrits à l'installation, lus par la page Infos.
 CREDENTIALS_FILE = Path(CONFIG.get("credentials_file", str(STATE_FILE.parent / "panel-credentials.json")))
 HISTORY = collections.deque(maxlen=1440)  # ~24 h à raison d'un point par minute
@@ -278,8 +279,8 @@ def save_users(users):
 
 
 def is_admin():
-    """Le compte « admin » est le seul à voir les informations sensibles."""
-    return session.get("user") == "admin"
+    """Panel mono-utilisateur : tout utilisateur connecté a tous les droits."""
+    return bool(session.get("logged_in"))
 
 
 def local_ip():
@@ -762,11 +763,36 @@ def scheduler_loop():
 
 
 # --------------------------------------------------------------------- pages
+@app.before_request
+def _cloudflare_sso():
+    """Connexion automatique si la requête arrive via Cloudflare Access.
+
+    Cloudflare (login Google) ajoute l'en-tête ``Cf-Access-Authenticated-User-Email``
+    aux requêtes qu'il relaie : on peut alors connecter l'utilisateur sans le mot de
+    passe du panel. En accès direct sur le LAN, cet en-tête est absent → le login
+    classique reste demandé (la porte LAN reste protégée). Un email autorisé peut
+    être configuré pour n'accepter que le tien.
+    """
+    if session.get("logged_in"):
+        return
+    email = request.headers.get("Cf-Access-Authenticated-User-Email", "").strip()
+    if not email:
+        return
+    with _state_lock:
+        allowed = (load_state().get("cf_access_email") or "").strip().lower()
+    if allowed and email.lower() != allowed:
+        return
+    session["logged_in"] = True
+    session["user"] = "admin"
+    session["via"] = "cloudflare"
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        # Panel mono-compte : l'identifiant vaut « admin » par défaut.
+        username = request.form.get("username", "admin").strip() or "admin"
         password = request.form.get("password", "")
         with _users_lock:
             stored = load_users().get(username)
@@ -775,7 +801,7 @@ def login():
             session["user"] = username
             return redirect(url_for("index"))
         time.sleep(1)  # freine les tentatives de force brute
-        error = "Identifiant ou mot de passe incorrect."
+        error = "Mot de passe incorrect."
     return render_template("login.html", error=error)
 
 
@@ -863,6 +889,8 @@ def api_info():
         notify_enabled=bool(state.get("notify_enabled")),
         notify_url=state.get("notify_url", ""),
         notify_events=notify_events,
+        cf_access_email=state.get("cf_access_email", ""),
+        login_via=session.get("via", "panel"),
     )
 
 
@@ -1237,29 +1265,16 @@ def api_history():
         return jsonify(history=list(HISTORY))
 
 
-@app.get("/api/users")
-@admin_required
-def api_users_list():
-    with _users_lock:
-        users = load_users()
-    return jsonify(users=sorted(users.keys()), current=session.get("user"))
-
-
-@app.post("/api/users")
-@admin_required
-def api_users_create():
-    data = request.get_json(silent=True) or {}
-    username = str(data.get("username", "")).strip()
-    password = str(data.get("password", ""))
-    if not VALID_USERNAME.match(username):
-        return jsonify(error="Identifiant invalide (3 à 32 caractères : lettres, chiffres, . _ -)."), 400
+@app.post("/api/admin-password")
+@login_required
+def api_admin_password():
+    """Change le mot de passe du panel (compte unique « admin »)."""
+    password = str((request.get_json(silent=True) or {}).get("password", ""))
     if len(password) < 8:
         return jsonify(error="Le mot de passe doit faire au moins 8 caractères."), 400
     with _users_lock:
         users = load_users()
-        if username in users:
-            return jsonify(error="Cet identifiant existe déjà."), 409
-        users[username] = generate_password_hash(password)
+        users["admin"] = generate_password_hash(password)
         try:
             save_users(users)
         except OSError as exc:
@@ -1267,37 +1282,18 @@ def api_users_create():
     return jsonify(ok=True)
 
 
-@app.delete("/api/users/<username>")
-@admin_required
-def api_users_delete(username):
-    with _users_lock:
-        users = load_users()
-        if username not in users:
-            return jsonify(error="Compte introuvable."), 404
-        if len(users) <= 1:
-            return jsonify(error="Impossible de supprimer le dernier compte."), 400
-        del users[username]
+@app.post("/api/cf-access")
+@login_required
+def api_cf_access_set():
+    """Définit l'email Google autorisé en auto-login via Cloudflare (vide = tous)."""
+    email = str((request.get_json(silent=True) or {}).get("email", "")).strip()
+    if len(email) > 120:
+        return jsonify(error="Email trop long."), 400
+    with _state_lock:
+        state = load_state()
+        state["cf_access_email"] = email
         try:
-            save_users(users)
-        except OSError as exc:
-            return jsonify(error=f"Écriture impossible : {exc}"), 500
-    return jsonify(ok=True)
-
-
-@app.post("/api/users/<username>/password")
-@admin_required
-def api_users_password(username):
-    data = request.get_json(silent=True) or {}
-    password = str(data.get("password", ""))
-    if len(password) < 8:
-        return jsonify(error="Le mot de passe doit faire au moins 8 caractères."), 400
-    with _users_lock:
-        users = load_users()
-        if username not in users:
-            return jsonify(error="Compte introuvable."), 404
-        users[username] = generate_password_hash(password)
-        try:
-            save_users(users)
+            save_state(state)
         except OSError as exc:
             return jsonify(error=f"Écriture impossible : {exc}"), 500
     return jsonify(ok=True)

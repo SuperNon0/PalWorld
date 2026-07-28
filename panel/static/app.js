@@ -256,12 +256,17 @@ async function doAction(action) {
   }
 }
 
-// -------------------------------- mot de passe système (VM) — page Paramètres
-async function loadVmCreds() {
+// ----------------------------------------- réglages de connexion — page Paramètres
+async function loadSettingsInfo() {
   try {
     const d = await api("/api/info");
     $("#vmpw-user").value = d.ssh_user || "ubuntu";
     $("#vmpw-pass").value = d.vm_password || "";
+    $("#cf-email").value = d.cf_access_email || "";
+    $("#cf-login-state").textContent =
+      d.login_via === "cloudflare"
+        ? "✅ Tu es connecté automatiquement via Cloudflare (Google)."
+        : "🔑 Connexion actuelle par mot de passe (accès direct / LAN).";
   } catch (err) {
     /* silencieux */
   }
@@ -273,6 +278,27 @@ async function saveVmPassword() {
       body: { vm_user: $("#vmpw-user").value.trim(), vm_password: $("#vmpw-pass").value },
     });
     toast("Mot de passe système mis à jour (visible dans Infos).");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function saveAdminPassword() {
+  const password = $("#admin-pw").value;
+  if (password.length < 8) return toast("8 caractères minimum.", true);
+  try {
+    await api("/api/admin-password", { body: { password } });
+    $("#admin-pw").value = "";
+    toast("Mot de passe du panel changé.");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function saveCfAccess() {
+  try {
+    await api("/api/cf-access", { body: { email: $("#cf-email").value.trim() } });
+    toast("Réglage de connexion Cloudflare enregistré.");
   } catch (err) {
     toast(err.message, true);
   }
@@ -570,27 +596,6 @@ async function saveConfig() {
     toast("Configuration enregistrée. Redémarrez le serveur pour l'appliquer.");
   } catch (err) {
     toast(err.message, true);
-  }
-}
-
-async function loadUsers() {
-  try {
-    const data = await api("/api/users");
-    const tbody = $("#users-table tbody");
-    tbody.innerHTML = data.users
-      .map((u) => {
-        const isCurrent = u === data.current;
-        return `<tr>
-          <td>${escapeHtml(u)}${isCurrent ? ' <span class="muted">(vous)</span>' : ""}</td>
-          <td class="backup-actions">
-            <button class="btn small" data-user-pw="${escapeHtml(u)}">Mot de passe</button>
-            <button class="btn small danger" data-user-del="${escapeHtml(u)}" ${data.users.length <= 1 ? "disabled" : ""}>Supprimer</button>
-          </td>
-        </tr>`;
-      })
-      .join("");
-  } catch (err) {
-    /* silencieux */
   }
 }
 
@@ -1133,7 +1138,7 @@ function showTab(name) {
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
-  if (name === "parametres" && isAdmin) { loadUsers(); loadVmCreds(); loadNotifyConfig(); loadHaConfig(); }
+  if (name === "parametres" && isAdmin) { loadSettingsInfo(); loadNotifyConfig(); loadHaConfig(); }
   if (name === "acces") loadPlayit();
   if (name === "reproduction") { initBreeding(); loadFavorites(); }
   if (name === "backups") loadBackups();
@@ -1221,46 +1226,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  $("#user-create").addEventListener("click", async () => {
-    const username = $("#new-user").value.trim();
-    const password = $("#new-user-pw").value;
-    if (!username || !password) return toast("Identifiant et mot de passe requis.", true);
-    try {
-      await api("/api/users", { body: { username, password } });
-      toast("Compte créé.");
-      $("#new-user").value = "";
-      $("#new-user-pw").value = "";
-      loadUsers();
-    } catch (err) {
-      toast(err.message, true);
-    }
-  });
-
-  $("#users-table").addEventListener("click", async (event) => {
-    const pwBtn = event.target.closest("[data-user-pw]");
-    const delBtn = event.target.closest("[data-user-del]");
-    if (pwBtn) {
-      const username = pwBtn.dataset.userPw;
-      const password = prompt(`Nouveau mot de passe pour « ${username} » (8 caractères min.) :`);
-      if (!password) return;
-      try {
-        await api(`/api/users/${encodeURIComponent(username)}/password`, { body: { password } });
-        toast("Mot de passe modifié.");
-      } catch (err) {
-        toast(err.message, true);
-      }
-    } else if (delBtn) {
-      const username = delBtn.dataset.userDel;
-      if (!confirm(`Supprimer le compte « ${username} » ?`)) return;
-      try {
-        await api(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
-        toast("Compte supprimé.");
-        loadUsers();
-      } catch (err) {
-        toast(err.message, true);
-      }
-    }
-  });
+  // Connexion : mot de passe du panel + auto-login Cloudflare
+  $("#admin-pw-save").addEventListener("click", saveAdminPassword);
+  $("#cf-email-save").addEventListener("click", saveCfAccess);
 
   $("#console-clear").addEventListener("click", () => ($("#console").textContent = ""));
   $("#config-save").addEventListener("click", saveConfig);
