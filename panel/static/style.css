@@ -557,6 +557,49 @@ input::placeholder { color: var(--muted); }
 .login-card .btn { width: 100%; }
 .login-logo { font-size: 2.2rem; }
 .login-error { color: var(--red); font-size: 0.78rem; }
+.forgot-link { color: var(--muted); font-size: 0.8rem; text-decoration: none; }
+.forgot-link:hover { color: var(--accent); }
+
+/* Page « mot de passe oublié » */
+.forgot-card {
+  width: min(560px, 92vw);
+  align-items: stretch;
+  text-align: left;
+}
+.forgot-card .login-logo,
+.forgot-card .badge,
+.forgot-card .btn,
+.forgot-card .forgot-link { align-self: center; }
+.forgot-intro,
+.forgot-note { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.forgot-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.forgot-cmd {
+  background: var(--console-bg);
+  color: var(--console-text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+.forgot-note code,
+.forgot-steps code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
 
 @media (max-width: 720px) {
   .actions { margin-left: 0; }

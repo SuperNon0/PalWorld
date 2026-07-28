@@ -816,6 +816,13 @@ def login():
     return render_template("login.html", error=error)
 
 
+@app.get("/mot-de-passe-oublie")
+def forgot_password():
+    """Page d'aide publique (accessible même déconnecté) : comment réinitialiser
+    le mot de passe du panel depuis la VM."""
+    return render_template("forgot.html")
+
+
 @app.post("/logout")
 def logout():
     session.clear()

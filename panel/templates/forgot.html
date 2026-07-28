@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mot de passe oublié — Palworld Panel</title>
+  <meta name="theme-color" content="#0e0f11">
+  <link rel="stylesheet" href="{{ url_for('static', filename='fonts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-card forgot-card">
+    <div class="logo login-logo"><span class="g">pal</span><span class="i">world</span></div>
+    <span class="badge">mot de passe oublié</span>
+    <p class="forgot-intro">Le mot de passe se réinitialise <b>depuis la VM</b> (console Proxmox ou SSH), puisque tu ne peux plus te connecter au panel.</p>
+    <ol class="forgot-steps">
+      <li>Ouvre un terminal de la VM (console Proxmox, ou <code>ssh …</code> depuis ton PC).</li>
+      <li>Lance cette commande, puis choisis un nouveau mot de passe :
+        <pre class="forgot-cmd">sudo bash /opt/palworld/scripts/reset-admin-password.sh</pre>
+      </li>
+      <li>Reviens ici et connecte-toi avec le nouveau mot de passe.</li>
+    </ol>
+    <p class="forgot-note">Secours ultime : <code>sudo rm /opt/palworld/panel-users.json</code> puis <code>sudo systemctl restart palworld-panel</code> remet le mot de passe défini à l'installation.</p>
+    <a class="btn primary full" href="{{ url_for('login') }}">← Retour à la connexion</a>
+    <a class="forgot-link" href="https://github.com/SuperNon0/PalWorld/blob/main/docs/CONNEXION.md" target="_blank" rel="noopener">Voir le guide complet</a>
+  </div>
+</body>
+</html>

@@ -15,6 +15,7 @@
     {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
     <input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" autofocus required>
     <button type="submit" class="btn primary full">Se connecter</button>
+    <a class="forgot-link" href="{{ url_for('forgot_password') }}">Mot de passe oublié ?</a>
   </form>
 </body>
 </html>
