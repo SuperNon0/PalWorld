@@ -1,8 +1,13 @@
-# 🔐 Connexion du panel — mise à jour et gestion du mot de passe
+# 🔐 Connexion du panel — guide pour les développeurs / administrateurs
 
-Ce guide explique comment **mettre à jour** ton panel Palworld pour bénéficier
-du nouveau système de connexion, comment **changer** le mot de passe et comment
-le **réinitialiser** si tu l'as oublié.
+> **À qui ce document s'adresse :** aux personnes qui **déploient ce projet**
+> (fork ou installation) et veulent y **ajouter / mettre à jour** le système de
+> connexion. Ce fichier est fait pour être **partagé tel quel** — il n'est pas
+> publié sur le site du panel.
+
+Il explique comment **mettre à jour** un panel existant pour bénéficier du
+système de connexion, comment **changer** et **réinitialiser** le mot de passe,
+comment activer l'**auto-login Cloudflare**, et surtout les **pièges à éviter**.
 
 ## Ce que change le nouveau système
 
@@ -81,3 +86,33 @@ Si ton panel est publié derrière **Cloudflare Access** avec un login Google :
 > demandé), mais un appareil malveillant **sur ton réseau** pourrait le
 > falsifier. Pour un usage maison, le risque est faible ; garde un mot de passe
 > solide sur le compte admin.
+
+---
+
+## 5. ⚠️ À éviter — pièges et leçons apprises
+
+Des erreurs rencontrées en construisant ce système. Évite-les :
+
+- ❌ **Ne supprime pas complètement le login.** Le panel reste accessible en
+  **direct sur le LAN** (ex. `http://192.168.0.221:8080`), sans passer par
+  Cloudflare. Sans mot de passe, **n'importe qui sur ton réseau** aurait un
+  accès total (arrêt du serveur, mots de passe affichés dans **Infos**…).
+  Garde le login ; utilise l'**auto-login Cloudflare** pour le confort.
+- ⚠️ **Cloudflare ne protège que le domaine public, pas l'IP LAN.** Ne te
+  repose pas uniquement dessus pour la sécurité — garde un **mot de passe admin
+  solide**.
+- ⚠️ **L'auto-login via l'en-tête Cloudflare est falsifiable sur le LAN.**
+  Renseigne ton **email autorisé** dans Paramètres et garde un bon mot de passe.
+- ⚠️ **Cache Cloudflare** : ne mets pas de règle « Cache Everything » sans
+  **exclure `/api/*`**, sinon le panel affiche des données **périmées** (statut
+  « Hors ligne » alors que le serveur tourne). Le panel envoie déjà `no-store`
+  sur l'API, mais une règle trop large peut le contourner.
+- ⚠️ **La Console temps réel (flux SSE) passe mal par Cloudflare** (mise en
+  mémoire tampon). Si elle ne défile pas via le tunnel, utilise-la en **accès
+  LAN**.
+- ⚠️ **Ne réécris pas `panel-users.json` en root sans rétablir les droits.**
+  Le panel tourne sous l'utilisateur `palworld` et doit pouvoir réécrire ce
+  fichier ; le script `reset-admin-password.sh` remet les bons droits tout seul.
+- ⚠️ **Ne modifie pas `config.json` ni le monde sauvegardé à la main.** Passe par
+  le panel (Configuration, Sauvegardes) ; les réinstallations sont idempotentes
+  et **n'écrasent pas** le monde.
