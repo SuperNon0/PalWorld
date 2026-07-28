@@ -15,7 +15,9 @@ panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
 **Panel web** (service systemd `palworld-panel`)
 - 🔐 **Connexion** : panel mono-compte (`admin`) protégé par mot de passe ;
   **auto-login via Cloudflare Access** (login Google) quand on passe par le tunnel,
-  mot de passe conservé pour l'accès direct LAN
+  mot de passe conservé pour l'accès direct LAN — voir
+  [`docs/CONNEXION.md`](docs/CONNEXION.md) (mise à jour, changement et
+  réinitialisation du mot de passe)
 - 📝 **Descriptions intégrées** : chaque paramètre de `PalWorldSettings.ini`
   est expliqué en français dans l'onglet Configuration
 - ℹ️ **Page Infos (compte admin uniquement)** : récapitule tout — adresse du
