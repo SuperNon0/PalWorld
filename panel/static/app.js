@@ -192,21 +192,11 @@ function renderPlayers(players) {
     .join("");
 }
 
-let apiFailCount = 0;
 async function refreshStatus() {
   try {
     renderStatus(await api("/api/status"));
-    apiFailCount = 0;
   } catch (err) {
-    // Le navigateur n'arrive pas à joindre l'API du panel (≠ serveur éteint).
-    // Cause fréquente en accès distant : cache/proxy Cloudflare. On le signale
-    // clairement au lieu de rester sur « Hors ligne ».
-    if (++apiFailCount >= 2) {
-      const pill = $("#status-pill");
-      pill.textContent = "⚠ Panel injoignable";
-      pill.className = "pill offline";
-      pill.title = "Le navigateur ne joint pas l'API du panel (souvent : cache/proxy Cloudflare). En accès direct LAN, ça marche.";
-    }
+    /* panel injoignable : on garde le dernier état affiché */
   }
 }
 

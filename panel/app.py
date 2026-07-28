@@ -763,17 +763,6 @@ def scheduler_loop():
 
 
 # --------------------------------------------------------------------- pages
-@app.after_request
-def _no_store_api(response):
-    """Empêche tout cache (Cloudflare, navigateur, proxy) de servir des réponses API
-    périmées : le statut du serveur, les stats et la console doivent toujours être
-    frais, même derrière Cloudflare."""
-    if request.path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-        response.headers["X-Accel-Buffering"] = "no"
-    return response
-
-
 @app.before_request
 def _cloudflare_sso():
     """Connexion automatique si la requête arrive via Cloudflare Access.
