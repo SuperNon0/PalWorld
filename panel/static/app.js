@@ -1237,6 +1237,16 @@ function showTab(name) {
   if (name === "infos") loadInfo();
 }
 
+// Sous-onglets internes de la Reproduction (Parents→Enfant / Pal ciblé /
+// J'ai→je veux / Favoris). Purement visuel : bascule les volets de la page.
+function showReproTab(name) {
+  document.querySelectorAll("#repro-subtabs .subtab").forEach((t) =>
+    t.classList.toggle("active", t.dataset.repro === name));
+  document.querySelectorAll("#tab-reproduction .repro-pane").forEach((p) =>
+    p.classList.toggle("active", p.dataset.reproPane === name));
+  if (name === "fav") loadFavorites();
+}
+
 // ------------------------------------------------------------------- init
 document.addEventListener("DOMContentLoaded", () => {
   // Grands onglets : « Serveur » ouvre le sous-onglet Tableau de bord par défaut.
@@ -1246,6 +1256,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelectorAll("#serveur-subtabs .subtab").forEach((tab) => {
     tab.addEventListener("click", () => showTab(tab.dataset.tab));
+  });
+  document.querySelectorAll("#repro-subtabs .subtab").forEach((tab) => {
+    tab.addEventListener("click", () => showReproTab(tab.dataset.repro));
   });
 
   // Liens internes "aller à un onglet" (ex : bannière d'installation → Console)

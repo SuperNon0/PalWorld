@@ -227,40 +227,56 @@
       <div class="section-header"><h2>Reproduction</h2></div>
       <p class="hint">Calcule l'enfant de deux Pals, ou trouve tous les couples qui donnent un Pal précis. Fonctionne <b>hors ligne</b>. <span class="muted">Données : PalworldBreedingCalculator (licence MIT).</span></p>
 
-      <div class="panel-block">
-        <h2>⭐ Mes favoris</h2>
-        <div id="breed-favorites"></div>
+      <nav class="repro-tabs" id="repro-subtabs">
+        <button class="subtab active" data-repro="couple">Parents → Enfant</button>
+        <button class="subtab" data-repro="target">Pal ciblé</button>
+        <button class="subtab" data-repro="chain">J'ai → je veux</button>
+        <button class="subtab" data-repro="fav">⭐ Favoris</button>
+      </nav>
+
+      <div class="repro-pane active" data-repro-pane="couple">
+        <div class="panel-block">
+          <h2>Deux parents → enfant</h2>
+          <div class="auto-row breed-row">
+            <input id="breed-parent1" class="grow" placeholder="Parent 1 (ex : Lamball)" autocomplete="off">
+            <span class="breed-plus">+</span>
+            <input id="breed-parent2" class="grow" placeholder="Parent 2 (ex : Cattiva)" autocomplete="off">
+          </div>
+          <div id="breed-child-result" class="breed-result"></div>
+        </div>
       </div>
 
-      <div class="panel-block">
-        <h2>Deux parents → enfant</h2>
-        <div class="auto-row breed-row">
-          <input id="breed-parent1" class="grow" placeholder="Parent 1 (ex : Lamball)" autocomplete="off">
-          <span class="breed-plus">+</span>
-          <input id="breed-parent2" class="grow" placeholder="Parent 2 (ex : Cattiva)" autocomplete="off">
+      <div class="repro-pane" data-repro-pane="target">
+        <div class="panel-block">
+          <h2>Un Pal cible → tous les couples possibles</h2>
+          <div class="auto-row breed-row">
+            <input id="breed-target" class="grow" placeholder="Pal à obtenir (ex : Anubis)" autocomplete="off">
+            <button class="btn primary" id="breed-find">Chercher les couples</button>
+          </div>
+          <div id="breed-parents-result" class="breed-result"></div>
         </div>
-        <div id="breed-child-result" class="breed-result"></div>
       </div>
 
-      <div class="panel-block">
-        <h2>Un Pal cible → tous les couples possibles</h2>
-        <div class="auto-row breed-row">
-          <input id="breed-target" class="grow" placeholder="Pal à obtenir (ex : Anubis)" autocomplete="off">
-          <button class="btn primary" id="breed-find">Chercher les couples</button>
+      <div class="repro-pane" data-repro-pane="chain">
+        <div class="panel-block">
+          <h2>J'ai ce Pal → je veux celui-là (chaînes)</h2>
+          <p class="hint">Indique un Pal que tu possèdes et celui que tu vises : le panel liste <b>toutes les chaînes d'accouplements les plus courtes</b>, et à <b>chaque étape tous les partenaires possibles</b> — si tu n'as pas l'un d'eux, un autre fait l'affaire.</p>
+          <div class="auto-row breed-row">
+            <input id="breed-have" class="grow" placeholder="J'ai (ex : Lamball)" autocomplete="off">
+            <span class="breed-plus">➜</span>
+            <input id="breed-want" class="grow" placeholder="Je veux (ex : Anubis)" autocomplete="off">
+            <button class="btn primary" id="breed-path">Calculer les chaînes</button>
+          </div>
+          <div id="breed-path-result" class="breed-result"></div>
         </div>
-        <div id="breed-parents-result" class="breed-result"></div>
       </div>
 
-      <div class="panel-block">
-        <h2>J'ai ce Pal → je veux celui-là (chaînes)</h2>
-        <p class="hint">Indique un Pal que tu possèdes et celui que tu vises : le panel liste <b>toutes les chaînes d'accouplements les plus courtes</b>, et à <b>chaque étape tous les partenaires possibles</b> — si tu n'as pas l'un d'eux, un autre fait l'affaire.</p>
-        <div class="auto-row breed-row">
-          <input id="breed-have" class="grow" placeholder="J'ai (ex : Lamball)" autocomplete="off">
-          <span class="breed-plus">➜</span>
-          <input id="breed-want" class="grow" placeholder="Je veux (ex : Anubis)" autocomplete="off">
-          <button class="btn primary" id="breed-path">Calculer les chaînes</button>
+      <div class="repro-pane" data-repro-pane="fav">
+        <div class="panel-block">
+          <h2>⭐ Mes favoris</h2>
+          <p class="hint">Retrouve ici les couples et chaînes que tu as marqués d'une ⭐ dans les autres onglets.</p>
+          <div id="breed-favorites"></div>
         </div>
-        <div id="breed-path-result" class="breed-result"></div>
       </div>
 
     </section>

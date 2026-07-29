@@ -620,6 +620,17 @@ input::placeholder { color: var(--muted); }
 .subtab:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
 .subtab.active { color: var(--green); border-bottom-color: var(--green); }
 
+/* sous-onglets internes de la page Reproduction (Parents→Enfant, etc.) */
+.repro-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 18px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.repro-pane { display: none; }
+.repro-pane.active { display: block; }
+
 /* ------------------------------------------ auto-complétion Pal (reproduction) */
 .pal-ac { position: relative; flex: 1 1 170px; min-width: 0; }
 .pal-ac > input { width: 100%; }
