@@ -21,6 +21,53 @@ comment activer l'**auto-login Cloudflare**, et surtout les **pièges à éviter
 
 ---
 
+## À livrer — les 3 composants du système de connexion
+
+Pour que **tous les déploiements se ressemblent** et restent dépannables, le
+système de connexion se compose de **trois pièces indissociables**. Ne livre
+pas la page de login sans les deux autres :
+
+1. **La page de connexion** (`templates/login.html`) — l'écran ci-dessous.
+2. **La page « Mot de passe oublié »** (`templates/forgot.html`), servie sur
+   `/mot-de-passe-oublie` et atteignable par le lien en bas de la connexion.
+3. **Le script de réinitialisation** (`scripts/reset-admin-password.sh`),
+   déployé sur la VM — c'est le **seul recours** si le mot de passe est perdu
+   et qu'il n'y a pas d'auto-login Cloudflare (voir §3).
+
+> ⚠️ **Le lien « Mot de passe oublié ? » sur la page de connexion n'est pas
+> décoratif** : sans la page `/mot-de-passe-oublie` **et** sans le script sur
+> la VM, un mot de passe oublié = panel définitivement inaccessible. Les trois
+> vont ensemble.
+
+---
+
+## La page de connexion — à reproduire à l'identique
+
+Pour que **tout le monde ait la même tête de connexion**, voici l'écran de
+référence. Reproduis-le tel quel (mêmes éléments, même charte) :
+
+![Aperçu de la page de connexion Palworld — logo « palworld », badge « panel · administration », champ mot de passe, bouton doré « Se connecter » et lien « Mot de passe oublié ? »](images/connexion-login.png)
+
+Éléments obligatoires, dans cet ordre :
+
+- **Logotype** `pal` (doré `#e8c547`, serif **DM Serif Display**) + `world`
+  (blanc, serif italique) — minuscules, collés.
+- **Badge** `panel · administration` (mono **DM Mono** en majuscules, chip
+  translucide arrondie).
+- **Champ mot de passe** unique (`type="password"`, `name="password"`,
+  `autofocus`) — pas de champ « nom d'utilisateur » (un seul compte `admin`).
+- **Bouton `Se connecter`** pleine largeur, fond doré (`.btn.primary.full`).
+- **Lien `Mot de passe oublié ?`** sous le bouton → `/mot-de-passe-oublie`.
+- Fond quasi noir `#0e0f11`, carte centrée (rayon 12 px). Les polices sont
+  **embarquées en base64** (`static/fonts.css`) : la connexion s'affiche
+  **hors ligne**, sans police Google.
+
+> 💡 Toutes les couleurs viennent du bloc `:root` de `static/style.css`. Ne
+> code jamais une couleur en dur ici : réutilise les variables (`--accent`,
+> `--bg`, etc.) pour rester dans la charte.
+
+---
+
 ## 1. Mettre à jour le panel
 
 ### Le plus simple — depuis le panel
