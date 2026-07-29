@@ -601,6 +601,72 @@ input::placeholder { color: var(--muted); }
   font-size: 0.82rem;
 }
 
+/* -------------------------------------------------- navigation à 2 niveaux */
+.sub-tabs {
+  padding: 6px 22px 0;
+  background: var(--bg);
+}
+.subtab {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.subtab:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.subtab.active { color: var(--green); border-bottom-color: var(--green); }
+
+/* ------------------------------------------ auto-complétion Pal (reproduction) */
+.pal-ac { position: relative; flex: 1 1 170px; min-width: 0; }
+.pal-ac > input { width: 100%; }
+.pal-ac-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+}
+.pal-ac-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pal-ac-opt:hover,
+.pal-ac-opt.active { background: var(--bg-card); }
+.pal-ac-num { color: var(--muted); font-size: 0.76rem; min-width: 42px; }
+.pal-ac-name {
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pal-ac-types { display: inline-flex; gap: 4px; flex: none; }
+.ptype {
+  font-size: 0.66rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: #0e0f11;
+  background: var(--tc, #888);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pal-ac-empty { padding: 10px; color: var(--muted); font-size: 0.85rem; }
+
 @media (max-width: 720px) {
   .actions { margin-left: 0; }
   .topbar { padding: 10px 12px; }

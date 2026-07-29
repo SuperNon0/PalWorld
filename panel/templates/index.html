@@ -37,16 +37,20 @@
     </div>
   </header>
 
-  <nav class="tabs">
-    <button class="tab active" data-tab="dashboard">Tableau de bord</button>
-    <button class="tab" data-tab="console">Console</button>
-    <button class="tab" data-tab="config">Configuration</button>
-    <button class="tab" data-tab="backups">Sauvegardes</button>
-    <button class="tab" data-tab="acces">Accès / Tunnel</button>
+  <nav class="tabs main-tabs">
+    <button class="tab active" data-group="serveur">Serveur</button>
     <button class="tab" data-tab="reproduction">Reproduction</button>
-    <button class="tab" data-tab="maintenance">Maintenance</button>
-    <button class="tab hidden" id="tab-btn-parametres" data-tab="parametres">Paramètres</button>
-    <button class="tab hidden" id="tab-btn-infos" data-tab="infos">Infos</button>
+    <button class="tab" data-tab="carte">Carte</button>
+    <button class="tab" data-tab="parametres">Paramètres</button>
+    <button class="tab" data-tab="infos">Infos</button>
+  </nav>
+
+  <nav class="tabs sub-tabs" id="serveur-subtabs">
+    <button class="subtab active" data-tab="dashboard">Tableau de bord</button>
+    <button class="subtab" data-tab="console">Console</button>
+    <button class="subtab" data-tab="config">Configuration</button>
+    <button class="subtab" data-tab="backups">Sauvegardes</button>
+    <button class="subtab" data-tab="acces">Accès / Tunnel</button>
   </nav>
 
   <main>
@@ -231,9 +235,9 @@
       <div class="panel-block">
         <h2>Deux parents → enfant</h2>
         <div class="auto-row breed-row">
-          <input list="pal-list" id="breed-parent1" class="grow" placeholder="Parent 1 (ex : Lamball)" autocomplete="off">
+          <input id="breed-parent1" class="grow" placeholder="Parent 1 (ex : Lamball)" autocomplete="off">
           <span class="breed-plus">+</span>
-          <input list="pal-list" id="breed-parent2" class="grow" placeholder="Parent 2 (ex : Cattiva)" autocomplete="off">
+          <input id="breed-parent2" class="grow" placeholder="Parent 2 (ex : Cattiva)" autocomplete="off">
         </div>
         <div id="breed-child-result" class="breed-result"></div>
       </div>
@@ -241,7 +245,7 @@
       <div class="panel-block">
         <h2>Un Pal cible → tous les couples possibles</h2>
         <div class="auto-row breed-row">
-          <input list="pal-list" id="breed-target" class="grow" placeholder="Pal à obtenir (ex : Anubis)" autocomplete="off">
+          <input id="breed-target" class="grow" placeholder="Pal à obtenir (ex : Anubis)" autocomplete="off">
           <button class="btn primary" id="breed-find">Chercher les couples</button>
         </div>
         <div id="breed-parents-result" class="breed-result"></div>
@@ -251,45 +255,42 @@
         <h2>J'ai ce Pal → je veux celui-là (chaînes)</h2>
         <p class="hint">Indique un Pal que tu possèdes et celui que tu vises : le panel liste <b>toutes les chaînes d'accouplements les plus courtes</b>, et à <b>chaque étape tous les partenaires possibles</b> — si tu n'as pas l'un d'eux, un autre fait l'affaire.</p>
         <div class="auto-row breed-row">
-          <input list="pal-list" id="breed-have" class="grow" placeholder="J'ai (ex : Lamball)" autocomplete="off">
+          <input id="breed-have" class="grow" placeholder="J'ai (ex : Lamball)" autocomplete="off">
           <span class="breed-plus">➜</span>
-          <input list="pal-list" id="breed-want" class="grow" placeholder="Je veux (ex : Anubis)" autocomplete="off">
+          <input id="breed-want" class="grow" placeholder="Je veux (ex : Anubis)" autocomplete="off">
           <button class="btn primary" id="breed-path">Calculer les chaînes</button>
         </div>
         <div id="breed-path-result" class="breed-result"></div>
       </div>
 
-      <datalist id="pal-list"></datalist>
     </section>
 
-    <section id="tab-maintenance" class="tab-page">
-      <div class="section-header">
-        <h2>Maintenance</h2>
-        <button class="btn ghost" id="check-updates">Vérifier les mises à jour</button>
-      </div>
-
+    <section id="tab-carte" class="tab-page">
+      <div class="section-header"><h2>Carte interactive</h2></div>
       <div class="panel-block">
-        <h2>Serveur de jeu</h2>
-        <p class="hint" id="server-build-info">Build installé : —</p>
-        <div class="auto-row">
-          <span id="server-update-state" class="update-state">—</span>
-          <button class="btn primary" data-action="update">Mettre à jour le serveur (SteamCMD)</button>
-        </div>
-      </div>
-
-      <div class="panel-block">
-        <h2>Panel (le site)</h2>
-        <p class="hint">Récupère tes dernières fonctionnalités depuis GitHub et redémarre le panel.</p>
-        <div class="auto-row">
-          <span id="panel-update-state" class="update-state">—</span>
-          <button class="btn primary" data-action="update-panel">Mettre à jour le panel</button>
-        </div>
+        <p class="hint">🗺️ <b>Bientôt.</b> La carte interactive (voyages rapides, tours, donjons, œufs, coffres, collections, notes — à cocher « déjà pris ») arrive dans la prochaine étape. Cette v1 met en place la navigation et la reproduction améliorée ; la carte est la suite.</p>
       </div>
     </section>
 
     <section id="tab-parametres" class="tab-page">
       <div class="section-header"><h2>Paramètres du panel</h2></div>
-      <p class="hint">🔒 Réservé au compte <b>admin</b>.</p>
+
+      <div class="panel-block">
+        <h2>Maintenance &amp; mises à jour</h2>
+        <div class="auto-row" style="margin-bottom:12px">
+          <button class="btn ghost" id="check-updates">Vérifier les mises à jour</button>
+        </div>
+        <p class="hint" id="server-build-info">Build installé : —</p>
+        <div class="auto-row">
+          <span id="server-update-state" class="update-state">—</span>
+          <button class="btn primary" data-action="update">Mettre à jour le serveur (SteamCMD)</button>
+        </div>
+        <div class="auto-row" style="margin-top:10px">
+          <span id="panel-update-state" class="update-state">—</span>
+          <button class="btn primary" data-action="update-panel">Mettre à jour le panel</button>
+        </div>
+        <p class="hint">« Mettre à jour le panel » récupère les dernières fonctionnalités depuis GitHub et redémarre le panel.</p>
+      </div>
 
       <div class="panel-block">
         <h2>Mot de passe du panel</h2>
@@ -373,6 +374,7 @@
   <div id="toast" class="toast hidden"></div>
   <script src="{{ url_for('static', filename='breeding-data.js') }}"></script>
   <script src="{{ url_for('static', filename='breeding-images.js') }}"></script>
+  <script src="{{ url_for('static', filename='breeding-meta.js') }}"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

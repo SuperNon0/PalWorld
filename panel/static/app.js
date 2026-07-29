@@ -121,11 +121,7 @@ function renderStatus(status) {
   const banner = $("#install-banner");
   if (banner) banner.classList.toggle("hidden", status.server_installed !== false);
 
-  isAdmin = !!status.is_admin;
-  const infosTab = $("#tab-btn-infos");
-  if (infosTab) infosTab.classList.toggle("hidden", !isAdmin);
-  const paramTab = $("#tab-btn-parametres");
-  if (paramTab) paramTab.classList.toggle("hidden", !isAdmin);
+  isAdmin = !!status.is_admin;  // panel mono-utilisateur : tous les onglets visibles
 
   renderNotifications(status.notifications);
 
@@ -912,9 +908,13 @@ function initBreeding() {
   if (palIndex || !Array.isArray(window.PAL_NAMES)) return;
   palIndex = {};
   window.PAL_NAMES.forEach((n, i) => (palIndex[n.toLowerCase()] = i));
-  $("#pal-list").innerHTML = window.PAL_NAMES
-    .map((n) => `<option value="${escapeHtml(n)}"></option>`)
-    .join("");
+  // Auto-complétion visuelle sur chaque champ de Pal. Sélectionner le dernier
+  // champ d'un mode lance directement le calcul.
+  attachPalAutocomplete($("#breed-parent1"), computeChild);
+  attachPalAutocomplete($("#breed-parent2"), computeChild);
+  attachPalAutocomplete($("#breed-target"), findParents);
+  attachPalAutocomplete($("#breed-have"), null);
+  attachPalAutocomplete($("#breed-want"), findPath);
 }
 
 function palIdx(value) {
@@ -928,6 +928,83 @@ function palIdx(value) {
 function palIcon(name) {
   const url = window.PAL_IMAGES && window.PAL_IMAGES[name];
   return url ? `<img class="pal-ico" src="${escapeHtml(url)}" alt="" loading="lazy">` : "";
+}
+
+// Type (élément) → libellé FR + couleur.
+const TYPE_INFO = {
+  Neutral: { fr: "Neutre", c: "#9aa0a6" },
+  Fire: { fr: "Feu", c: "#e8623c" },
+  Water: { fr: "Eau", c: "#3aa0e8" },
+  Grass: { fr: "Herbe", c: "#4fc36a" },
+  Electric: { fr: "Électrique", c: "#e8c547" },
+  Ice: { fr: "Glace", c: "#6fd6e8" },
+  Ground: { fr: "Sol", c: "#c99a5b" },
+  Dark: { fr: "Ténèbres", c: "#a78bfa" },
+  Dragon: { fr: "Dragon", c: "#7c6cf0" },
+};
+function palMeta(name) { return (window.PAL_META && window.PAL_META[name]) || null; }
+function palNumLabel(name) { const m = palMeta(name); return m && m.n ? `#${escapeHtml(m.n)}` : ""; }
+function palTypeBadges(name) {
+  const m = palMeta(name);
+  if (!m || !m.t) return "";
+  return m.t.map((t) => {
+    const info = TYPE_INFO[t] || { fr: t, c: "#888" };
+    return `<span class="ptype" style="--tc:${info.c}">${escapeHtml(info.fr)}</span>`;
+  }).join("");
+}
+function palOptionHtml(name) {
+  return `<div class="pal-ac-opt" data-name="${escapeHtml(name)}">${palIcon(name)}` +
+    `<span class="pal-ac-num">${palNumLabel(name)}</span>` +
+    `<span class="pal-ac-name">${escapeHtml(name)}</span>` +
+    `<span class="pal-ac-types">${palTypeBadges(name)}</span></div>`;
+}
+
+// Auto-complétion visuelle : liste déroulante (photo + n° + nom + type) qui
+// s'affiche au focus et se filtre à la frappe. onSelect() est appelé au choix.
+function attachPalAutocomplete(input, onSelect) {
+  if (!input) return;
+  const wrap = document.createElement("div");
+  wrap.className = "pal-ac";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  const list = document.createElement("div");
+  list.className = "pal-ac-list hidden";
+  wrap.appendChild(list);
+  let activeIdx = -1;
+
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    const names = window.PAL_NAMES || [];
+    const matches = q ? names.filter((n) => n.toLowerCase().includes(q)) : names.slice();
+    list.innerHTML = matches.length
+      ? matches.map(palOptionHtml).join("")
+      : '<div class="pal-ac-empty">Aucun Pal</div>';
+    activeIdx = -1;
+    list.classList.remove("hidden");
+    list.scrollTop = 0;
+  };
+  const hide = () => list.classList.add("hidden");
+  const pick = (name) => { input.value = name; hide(); if (onSelect) onSelect(); };
+
+  input.addEventListener("focus", render);
+  input.addEventListener("input", render);
+  input.addEventListener("blur", () => setTimeout(hide, 150));
+  input.addEventListener("keydown", (e) => {
+    if (list.classList.contains("hidden")) return;
+    const opts = [...list.querySelectorAll(".pal-ac-opt")];
+    if (!opts.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, opts.length - 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); }
+    else if (e.key === "Enter") { e.preventDefault(); pick((opts[activeIdx] || opts[0]).dataset.name); return; }
+    else if (e.key === "Escape") { hide(); return; }
+    else return;
+    opts.forEach((o, i) => o.classList.toggle("active", i === activeIdx));
+    if (opts[activeIdx]) opts[activeIdx].scrollIntoView({ block: "nearest" });
+  });
+  list.addEventListener("mousedown", (e) => {
+    const opt = e.target.closest(".pal-ac-opt");
+    if (opt) { e.preventDefault(); pick(opt.dataset.name); }
+  });
 }
 
 function computeChild() {
@@ -1133,22 +1210,41 @@ async function removeFavorite(id) {
 }
 
 // ---------------------------------------------------------------- onglets
+const SERVER_TABS = ["dashboard", "console", "config", "backups", "acces"];
+
 function showTab(name) {
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  const isServer = SERVER_TABS.includes(name);
+  // grands onglets : « Serveur » est actif dès qu'un sous-onglet serveur l'est
+  document.querySelectorAll(".main-tabs .tab").forEach((t) => {
+    const active = t.dataset.group === "serveur" ? isServer : t.dataset.tab === name;
+    t.classList.toggle("active", active);
+  });
+  // sous-barre serveur (visible seulement dans le groupe Serveur)
+  const sub = $("#serveur-subtabs");
+  sub.classList.toggle("hidden", !isServer);
+  if (isServer) {
+    sub.querySelectorAll(".subtab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  }
+  // pages
   document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
+  // chargements
   if (name === "console") startConsole();
   if (name === "config" && !configLoaded) loadConfig();
-  if (name === "parametres" && isAdmin) { loadSettingsInfo(); loadNotifyConfig(); loadHaConfig(); }
+  if (name === "parametres") { loadSettingsInfo(); loadNotifyConfig(); loadHaConfig(); loadMaintenance(); }
   if (name === "acces") loadPlayit();
   if (name === "reproduction") { initBreeding(); loadFavorites(); }
   if (name === "backups") loadBackups();
-  if (name === "maintenance") loadMaintenance();
   if (name === "infos") loadInfo();
 }
 
 // ------------------------------------------------------------------- init
 document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".tab").forEach((tab) => {
+  // Grands onglets : « Serveur » ouvre le sous-onglet Tableau de bord par défaut.
+  document.querySelectorAll(".main-tabs .tab").forEach((tab) => {
+    tab.addEventListener("click", () =>
+      showTab(tab.dataset.group === "serveur" ? "dashboard" : tab.dataset.tab));
+  });
+  document.querySelectorAll("#serveur-subtabs .subtab").forEach((tab) => {
     tab.addEventListener("click", () => showTab(tab.dataset.tab));
   });
 
@@ -1272,9 +1368,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#breed-parent1").addEventListener("input", computeChild);
   $("#breed-parent2").addEventListener("input", computeChild);
   $("#breed-find").addEventListener("click", findParents);
-  $("#breed-target").addEventListener("keydown", (e) => { if (e.key === "Enter") findParents(); });
   $("#breed-path").addEventListener("click", findPath);
-  $("#breed-want").addEventListener("keydown", (e) => { if (e.key === "Enter") findPath(); });
   // Vignette de Pal indisponible (hors ligne / 404) : on la retire, le nom reste.
   document.addEventListener("error", (e) => {
     const img = e.target;
