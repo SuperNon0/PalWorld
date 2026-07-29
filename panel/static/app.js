@@ -1209,6 +1209,136 @@ async function removeFavorite(id) {
   }
 }
 
+// ------------------------------------------------------------- carte interactive
+let mapInited = false;
+let mapCollected = new Set();
+const mapState = { scale: 1, x: 0, y: 0, min: 1, max: 6 };
+
+// Coords de jeu -> fraction [0..1] de l'image (calée sur worldmap.jpg) :
+// image = coords [-1000..1000] en X (ouest->est), nord en haut (+Y en haut).
+function mapFrac(x, y) {
+  return { fx: (x + 1000) / 2000, fy: (1000 - y) / 2000 };
+}
+
+async function initMap() {
+  if (mapInited) return;
+  mapInited = true;
+  try {
+    const d = await api("/api/map/collected");
+    mapCollected = new Set(d.collected || []);
+  } catch (e) { mapCollected = new Set(); }
+  renderMapMarkers();
+  updateMapProgress();
+  setupMapPanZoom();
+  resetMapView();
+  const hide = $("#map-hide-done");
+  if (hide) hide.addEventListener("change", renderMapMarkers);
+  const reset = $("#map-reset-view");
+  if (reset) reset.addEventListener("click", resetMapView);
+}
+
+function renderMapMarkers() {
+  const wrap = $("#map-markers");
+  if (!wrap || !Array.isArray(window.MAP_MARKERS)) return;
+  const hideDone = $("#map-hide-done") && $("#map-hide-done").checked;
+  wrap.innerHTML = window.MAP_MARKERS.map((m) => {
+    const done = mapCollected.has(m.id);
+    if (hideDone && done) return "";
+    const { fx, fy } = mapFrac(m.x, m.y);
+    return `<button class="map-dot ${done ? "done" : "todo"}" data-id="${escapeHtml(m.id)}" ` +
+      `style="left:${(fx * 100).toFixed(3)}%;top:${(fy * 100).toFixed(3)}%" ` +
+      `title="${escapeHtml(m.n)}${m.lv ? " · Niv. " + escapeHtml(m.lv) : ""}"></button>`;
+  }).join("");
+}
+
+function updateMapProgress() {
+  const list = window.MAP_MARKERS || [];
+  const done = list.filter((m) => mapCollected.has(m.id)).length;
+  const el = $("#map-progress");
+  if (el) el.textContent = `${done} / ${list.length} débloqués`;
+}
+
+function applyMapTransform() {
+  const stage = $("#map-stage");
+  if (!stage) return;
+  stage.style.transform = `translate(${mapState.x}px, ${mapState.y}px) scale(${mapState.scale})`;
+  const markers = $("#map-markers");
+  if (markers) markers.style.setProperty("--inv", (1 / mapState.scale).toFixed(4));
+}
+
+function resetMapView() {
+  mapState.scale = 1; mapState.x = 0; mapState.y = 0;
+  applyMapTransform();
+}
+
+function setupMapPanZoom() {
+  const wrap = $("#map-wrap");
+  if (!wrap || wrap.dataset.wired) return;
+  wrap.dataset.wired = "1";
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+
+  wrap.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".map-dot")) return;   // clic marqueur = popup
+    dragging = true; sx = e.clientX; sy = e.clientY; ox = mapState.x; oy = mapState.y;
+    wrap.classList.add("dragging");
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    mapState.x = ox + (e.clientX - sx);
+    mapState.y = oy + (e.clientY - sy);
+    applyMapTransform();
+  });
+  window.addEventListener("pointerup", () => { dragging = false; wrap.classList.remove("dragging"); });
+
+  wrap.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const ns = Math.min(mapState.max, Math.max(mapState.min, mapState.scale * factor));
+    const k = ns / mapState.scale;
+    mapState.x = cx - (cx - mapState.x) * k;   // zoom vers le curseur
+    mapState.y = cy - (cy - mapState.y) * k;
+    mapState.scale = ns;
+    applyMapTransform();
+  }, { passive: false });
+
+  const markers = $("#map-markers");
+  if (markers) markers.addEventListener("click", (e) => {
+    const dot = e.target.closest(".map-dot");
+    if (dot) openMapPopup(dot.dataset.id);
+  });
+}
+
+function openMapPopup(id) {
+  const m = (window.MAP_MARKERS || []).find((x) => x.id === id);
+  const el = $("#map-popup");
+  if (!m || !el) return;
+  const done = mapCollected.has(id);
+  el.innerHTML =
+    `<button class="map-popup-close" id="map-popup-close">✕</button>` +
+    `<div class="map-popup-head">${palIcon(m.n)}<div>` +
+      `<div class="map-popup-name">${escapeHtml(m.n)}</div>` +
+      `<div class="map-popup-sub">${escapeHtml(m.t || "")}${m.lv ? " · Niv. " + escapeHtml(m.lv) : ""}</div>` +
+    `</div></div>` +
+    `<button class="btn small ${done ? "danger" : "primary"}" id="map-toggle">` +
+      `${done ? "✓ Débloqué — retirer" : "Marquer débloqué / vaincu"}</button>`;
+  el.classList.remove("hidden");
+  $("#map-popup-close").addEventListener("click", () => el.classList.add("hidden"));
+  $("#map-toggle").addEventListener("click", () => toggleMapCollected(id));
+}
+
+async function toggleMapCollected(id) {
+  const done = !mapCollected.has(id);
+  try {
+    await api("/api/map/collected", { body: { id, done } });
+    if (done) mapCollected.add(id); else mapCollected.delete(id);
+    renderMapMarkers();
+    updateMapProgress();
+    openMapPopup(id);   // rafraîchit le bouton du popup
+  } catch (e) { toast(e.message, true); }
+}
+
 // ---------------------------------------------------------------- onglets
 const SERVER_TABS = ["dashboard", "console", "config", "backups", "acces"];
 
@@ -1234,6 +1364,7 @@ function showTab(name) {
   if (name === "acces") loadPlayit();
   if (name === "reproduction") { initBreeding(); loadFavorites(); }
   if (name === "backups") loadBackups();
+  if (name === "carte") initMap();
   if (name === "infos") loadInfo();
 }
 
