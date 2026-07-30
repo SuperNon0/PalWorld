@@ -110,6 +110,19 @@ app.secret_key = CONFIG["secret_key"]
 app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
+
+@app.template_global()
+def asset(filename):
+    """URL d'un fichier statique suffixée d'une version (date de modification).
+    Après une mise à jour du panel, le fichier change donc l'URL change : le
+    navigateur (et Cloudflare) est forcé de recharger la nouvelle version au
+    lieu de servir une copie en cache."""
+    try:
+        version = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+    except OSError:
+        version = 0
+    return url_for("static", filename=filename) + f"?v={version}"
+
 _task_lock = threading.Lock()
 _current_task = None
 _state_lock = threading.Lock()

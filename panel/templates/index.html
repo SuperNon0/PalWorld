@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Palworld Panel</title>
   <meta name="theme-color" content="#0e0f11">
-  <link rel="stylesheet" href="{{ url_for('static', filename='fonts.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ asset('fonts.css') }}">
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -380,9 +380,9 @@
   </main>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="{{ url_for('static', filename='breeding-data.js') }}"></script>
-  <script src="{{ url_for('static', filename='breeding-images.js') }}"></script>
-  <script src="{{ url_for('static', filename='breeding-meta.js') }}"></script>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ asset('breeding-data.js') }}"></script>
+  <script src="{{ asset('breeding-images.js') }}"></script>
+  <script src="{{ asset('breeding-meta.js') }}"></script>
+  <script src="{{ asset('app.js') }}"></script>
 </body>
 </html>
