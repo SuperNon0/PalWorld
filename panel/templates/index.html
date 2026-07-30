@@ -40,7 +40,6 @@
   <nav class="tabs main-tabs">
     <button class="tab active" data-group="serveur">Serveur</button>
     <button class="tab" data-tab="reproduction">Reproduction</button>
-    <button class="tab" data-tab="carte">Carte</button>
     <button class="tab" data-tab="parametres">Paramètres</button>
     <button class="tab" data-tab="infos">Infos</button>
   </nav>
@@ -281,26 +280,6 @@
 
     </section>
 
-    <section id="tab-carte" class="tab-page">
-      <div class="section-header"><h2>Carte interactive</h2></div>
-      <p class="hint">Boss (Alpha Pals) de Palpagos. Clique un point pour voir le Pal et cocher <b>« vaincu / débloqué »</b> — ta progression est enregistrée sur ton compte. Glisse pour te déplacer, molette pour zoomer. Fonctionne <b>hors ligne</b>. <span class="muted">Positions : paldb ; carte du jeu.</span></p>
-
-      <div class="map-toolbar">
-        <span class="chip" id="map-progress">— / —</span>
-        <label class="map-filter"><input type="checkbox" id="map-hide-done"> Masquer les débloqués</label>
-        <span class="map-legend"><span class="map-dot legend-todo"></span>à faire <span class="map-dot legend-done"></span>débloqué</span>
-        <button class="btn small ghost" id="map-reset-view">Recadrer</button>
-      </div>
-
-      <div class="map-wrap" id="map-wrap">
-        <div class="map-stage" id="map-stage">
-          <img id="map-img" src="{{ url_for('static', filename='map/worldmap.jpg') }}" alt="Carte de Palpagos" draggable="false">
-          <div class="map-markers" id="map-markers"></div>
-        </div>
-        <div class="map-popup hidden" id="map-popup"></div>
-      </div>
-    </section>
-
     <section id="tab-parametres" class="tab-page">
       <div class="section-header"><h2>Paramètres du panel</h2></div>
 
@@ -404,7 +383,6 @@
   <script src="{{ url_for('static', filename='breeding-data.js') }}"></script>
   <script src="{{ url_for('static', filename='breeding-images.js') }}"></script>
   <script src="{{ url_for('static', filename='breeding-meta.js') }}"></script>
-  <script src="{{ url_for('static', filename='map-data.js') }}"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

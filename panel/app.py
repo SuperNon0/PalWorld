@@ -101,8 +101,6 @@ STATE_DEFAULTS = {
     "ha_token": "",            # jeton d'accès longue durée
     # Favoris de reproduction (couples + chaînes enregistrés par les joueurs)
     "breeding_favorites": [],
-    # Carte : identifiants des marqueurs cochés « débloqué / vaincu » par l'admin
-    "map_collected": [],
     # Connexion : email Google autorisé en auto-login via Cloudflare Access (vide = tout email vérifié par Cloudflare)
     "cf_access_email": "",
 }
@@ -1154,41 +1152,6 @@ def api_breeding_favorites_delete(fav_id):
         except OSError as exc:
             return jsonify(error=f"Écriture impossible : {exc}"), 500
     return jsonify(ok=True)
-
-
-# ------------------------------------------------------------- carte interactive
-@app.get("/api/map/collected")
-@login_required
-def api_map_collected_get():
-    with _state_lock:
-        collected = load_state().get("map_collected", [])
-    return jsonify(collected=collected)
-
-
-@app.post("/api/map/collected")
-@login_required
-def api_map_collected_set():
-    data = request.get_json(silent=True) or {}
-    marker_id = (data.get("id") or "").strip()
-    done = bool(data.get("done"))
-    if not VALID_SLUG.match(marker_id):
-        return jsonify(error="Identifiant de marqueur invalide."), 400
-    with _state_lock:
-        state = load_state()
-        collected = [c for c in state.get("map_collected", []) if isinstance(c, str)]
-        present = marker_id in collected
-        if done and not present:
-            if len(collected) >= 5000:
-                return jsonify(error="Trop de marqueurs enregistrés."), 400
-            collected.append(marker_id)
-        elif not done and present:
-            collected = [c for c in collected if c != marker_id]
-        state["map_collected"] = collected
-        try:
-            save_state(state)
-        except OSError as exc:
-            return jsonify(error=f"Écriture impossible : {exc}"), 500
-    return jsonify(ok=True, done=done, count=len(collected))
 
 
 @app.post("/api/action")
