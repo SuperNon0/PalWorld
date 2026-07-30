@@ -1252,17 +1252,34 @@ def api_config_set():
     settings = (request.get_json(silent=True) or {}).get("settings", {})
     if not isinstance(settings, dict) or not settings:
         return jsonify(error="Aucun paramètre reçu."), 400
+    to_write = {}
     for key, value in settings.items():
         if not VALID_KEY.match(str(key)):
             return jsonify(error=f"Clé invalide : {key}"), 400
         value = str(value)
         if not (VALID_BARE_VALUE.match(value) or VALID_QUOTED_VALUE.match(value)):
             return jsonify(error=f"Valeur invalide pour {key}."), 400
+        to_write[str(key)] = value
     try:
-        palworld_config.write_settings(SETTINGS_FILE, {k: str(v) for k, v in settings.items()})
+        palworld_config.write_settings(SETTINGS_FILE, to_write)
     except OSError as exc:
-        return jsonify(error=f"Écriture impossible : {exc}"), 500
-    return jsonify(ok=True)
+        return jsonify(error=f"Écriture impossible : {exc}. Vérifie que le fichier "
+                       f"{SETTINGS_FILE} appartient à l'utilisateur « palworld »."), 500
+    # Vérification : on relit le fichier et on confirme que les changements sont
+    # bien sur le disque (détecte droits insuffisants ou réécriture par un tiers).
+    try:
+        saved = palworld_config.read_settings(SETTINGS_FILE)
+    except OSError as exc:
+        return jsonify(error=f"Relecture impossible après écriture : {exc}"), 500
+    not_persisted = [k for k, v in to_write.items() if saved.get(k) != v]
+    if not_persisted:
+        return jsonify(
+            error=("Les changements n'ont pas été conservés sur le disque : "
+                   + ", ".join(not_persisted)
+                   + f". Vérifie les droits du fichier {SETTINGS_FILE} (propriétaire "
+                   "« palworld ») ou qu'aucun autre processus ne le réécrit."),
+            not_persisted=not_persisted), 500
+    return jsonify(ok=True, settings=saved)
 
 
 @app.get("/api/history")

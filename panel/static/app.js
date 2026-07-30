@@ -550,24 +550,28 @@ function inputForSetting(key, rawValue) {
   return `<input type="text" data-key="${key}" value="${escapeHtml(display)}">`;
 }
 
-async function loadConfig() {
-  try {
-    const data = await api("/api/config");
-    configMeta = {};
-    const rows = Object.entries(data.settings)
-      .map(([key, value]) => {
-        const desc = SETTING_DESCRIPTIONS[key];
-        return `<tr data-setting="${key.toLowerCase()}">
+function renderConfig(settings) {
+  configMeta = {};
+  const rows = Object.entries(settings)
+    .map(([key, value]) => {
+      const desc = SETTING_DESCRIPTIONS[key];
+      return `<tr data-setting="${key.toLowerCase()}">
           <td>${key}${desc ? `<span class="setting-desc">${escapeHtml(desc)}</span>` : ""}</td>
           <td>${inputForSetting(key, value)}</td>
         </tr>`;
-      })
-      .join("");
-    $("#config-table tbody").innerHTML =
-      rows || '<tr><td class="muted">Configuration introuvable — le serveur a-t-il été installé ?</td></tr>';
-    $("#config-table").querySelectorAll("input, select").forEach((el) => {
-      el.addEventListener("input", () => el.classList.add("changed"));
-    });
+    })
+    .join("");
+  $("#config-table tbody").innerHTML =
+    rows || '<tr><td class="muted">Configuration introuvable — le serveur a-t-il été installé ?</td></tr>';
+  $("#config-table").querySelectorAll("input, select").forEach((el) => {
+    el.addEventListener("input", () => el.classList.add("changed"));
+  });
+}
+
+async function loadConfig() {
+  try {
+    const data = await api("/api/config");
+    renderConfig(data.settings);
     configLoaded = true;
   } catch (err) {
     toast(err.message, true);
@@ -587,9 +591,12 @@ async function saveConfig() {
     settings[key] = value;
   });
   try {
-    await api("/api/config", { body: { settings } });
+    const data = await api("/api/config", { body: { settings } });
+    // Réaffiche les valeurs réellement relues sur le disque (preuve de sauvegarde,
+    // insensible à un éventuel cache sur la lecture).
+    if (data.settings) renderConfig(data.settings);
     $("#config-table").querySelectorAll(".changed").forEach((el) => el.classList.remove("changed"));
-    toast("Configuration enregistrée. Redémarrez le serveur pour l'appliquer.");
+    toast("Configuration enregistrée et vérifiée sur le disque. Redémarrez le serveur pour l'appliquer.");
   } catch (err) {
     toast(err.message, true);
   }
