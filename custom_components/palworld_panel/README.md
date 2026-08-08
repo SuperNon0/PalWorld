@@ -12,7 +12,11 @@ redémarrages de HA et se configurent depuis l'interface de HA.
 - Home Assistant **2024.4** ou plus récent.
 - [HACS](https://hacs.xyz) installé.
 - Le panel Palworld accessible depuis Home Assistant (même réseau local).
-- Un **compte du panel** (identifiant + mot de passe).
+- Le **mot de passe** du panel (compte unique `admin`).
+
+> ⚠️ Utilise l'**adresse locale** du panel (`http://IP:8080`), **pas** une URL
+> publique / Cloudflare : Cloudflare Access bloque l'accès automatisé de Home
+> Assistant.
 
 ## Installation via HACS
 
@@ -28,8 +32,8 @@ redémarrages de HA et se configurent depuis l'interface de HA.
 1. **Paramètres → Appareils et services → Ajouter une intégration**.
 2. Cherche **« Palworld Panel »**.
 3. Renseigne :
-   - **URL du panel** — ex. `http://192.168.0.10:8080`
-   - **Identifiant** et **Mot de passe** d'un compte du panel
+   - **URL du panel** — l'adresse **locale**, ex. `http://192.168.0.10:8080`
+   - **Mot de passe** du panel
 4. Valide : l'appareil **Palworld** et ses capteurs apparaissent.
 
 ## Capteurs créés

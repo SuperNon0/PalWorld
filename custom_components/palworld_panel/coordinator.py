@@ -33,10 +33,13 @@ class PalworldPanelCoordinator(DataUpdateCoordinator):
         )
         self.entry = entry
         self._base = str(entry.data[CONF_URL]).rstrip("/")
-        self._user = entry.data[CONF_USERNAME]
+        self._user = entry.data.get(CONF_USERNAME, "admin")
         self._password = entry.data[CONF_PASSWORD]
-        # Session dédiée (cookie jar propre à cette intégration).
-        self._session = aiohttp.ClientSession()
+        # Session dédiée. cookie_jar(unsafe=True) est INDISPENSABLE : par défaut
+        # aiohttp refuse de stocker les cookies servis par une adresse IP (ex.
+        # http://192.168.x.x:8080). Sans ça, le cookie de session du /login est
+        # jeté et /api/ha/stats repart non authentifié → l'intégration échoue.
+        self._session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True))
 
     async def async_close(self) -> None:
         """Ferme la session HTTP (au déchargement de l'intégration)."""

@@ -3,17 +3,16 @@
     "step": {
       "user": {
         "title": "Palworld Panel",
-        "description": "Connecte Home Assistant à ton panel d'administration Palworld.",
+        "description": "Connecte Home Assistant à ton panel d'administration Palworld. Utilise l'adresse LOCALE du panel (ex. http://192.168.x.x:8080), pas une URL publique/Cloudflare.",
         "data": {
           "url": "URL du panel",
-          "username": "Identifiant du panel",
           "password": "Mot de passe du panel"
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossible de joindre le panel à cette URL.",
-      "invalid_auth": "Identifiant ou mot de passe incorrect."
+      "cannot_connect": "Impossible de joindre le panel à cette URL. Utilise l'adresse locale (http://IP:8080), pas l'URL Cloudflare.",
+      "invalid_auth": "Mot de passe du panel incorrect."
     },
     "abort": {
       "already_configured": "Ce panel est déjà configuré."

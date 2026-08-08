@@ -24,9 +24,9 @@ class PalworldPanelConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             url = str(user_input[CONF_URL]).rstrip("/")
-            errors = await self._validate(
-                url, user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
-            )
+            # Panel mono-compte : l'identifiant est toujours « admin ».
+            username = "admin"
+            errors = await self._validate(url, username, user_input[CONF_PASSWORD])
             if not errors:
                 await self.async_set_unique_id(url)
                 self._abort_if_unique_id_configured()
@@ -34,7 +34,7 @@ class PalworldPanelConfigFlow(ConfigFlow, domain=DOMAIN):
                     title=DEVICE_NAME,
                     data={
                         CONF_URL: url,
-                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_USERNAME: username,
                         CONF_PASSWORD: user_input[CONF_PASSWORD],
                     },
                 )
@@ -42,7 +42,6 @@ class PalworldPanelConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_URL, default="http://192.168.0.10:8080"): str,
-                vol.Required(CONF_USERNAME, default="admin"): str,
                 vol.Required(CONF_PASSWORD): str,
             }
         )
@@ -50,7 +49,11 @@ class PalworldPanelConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _validate(self, url: str, username: str, password: str) -> dict[str, str]:
         """Vérifie l'URL et le compte en se connectant réellement au panel."""
-        session = async_create_clientsession(self.hass)
+        # cookie_jar(unsafe=True) : sans ça, aiohttp jette les cookies servis par
+        # une adresse IP (http://192.168.x.x:8080) et la vérification échoue.
+        session = async_create_clientsession(
+            self.hass, cookie_jar=aiohttp.CookieJar(unsafe=True)
+        )
         try:
             async with session.post(
                 f"{url}/login",
