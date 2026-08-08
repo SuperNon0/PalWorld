@@ -132,12 +132,15 @@ _users_lock = threading.Lock()
 # Suivi des transitions pour les notifications (évite d'alerter à chaque tick).
 _last_online = None    # bool | None : dernier état connu du serveur (en ligne ?)
 _disk_was_low = False  # le disque était-il déjà en dessous du seuil au dernier tick ?
+_last_players = None   # set[str] | None : pseudos connectés au dernier relevé
 
 # Événements notifiables → libellé affiché dans le panel (et repère pour l'admin).
 NOTIFY_EVENTS = {
     "server_online": "🟢 Serveur démarré",
     "server_offline": "🔴 Serveur arrêté / hors ligne",
     "server_restart": "🔄 Serveur redémarré",
+    "player_join": "👋 Joueur connecté",
+    "player_leave": "🚪 Joueur déconnecté",
     "server_update": "⬆️ Mise à jour du serveur disponible",
     "panel_update": "⬆️ Mise à jour du panel disponible",
     "backup_done": "💾 Sauvegarde terminée",
@@ -752,6 +755,30 @@ def _check_service_transition():
         notify_external_async("server_online" if online else "server_offline")
 
 
+def _check_players_transition():
+    """Notifie l'arrivée / le départ de chaque joueur (avec le total à jour)."""
+    global _last_players
+    if service_state() != "active":
+        _last_players = None  # serveur arrêté : on repart d'une base vierge
+        return
+    try:
+        plist = palworld_api().players().get("players", [])
+    except APIError:
+        return  # API pas prête : on ne touche pas à la base
+    current = {str(p.get("name") or "?") for p in plist}
+    if _last_players is None:
+        _last_players = current  # premier relevé : base sans notifier
+        return
+    if current == _last_players:
+        return
+    count = str(len(current))
+    for name in sorted(current - _last_players):
+        notify_external_async("player_join", {"joueur": name, "joueurs": count})
+    for name in sorted(_last_players - current):
+        notify_external_async("player_leave", {"joueur": name, "joueurs": count})
+    _last_players = current
+
+
 def _check_disk_transition(stats):
     """Notifie une seule fois quand le disque passe sous le seuil d'alerte."""
     global _disk_was_low
@@ -779,8 +806,9 @@ def scheduler_loop():
                 except Exception:
                     logging.exception("Vérification des mises à jour impossible")
 
-            # Détection des transitions (serveur en ligne/hors ligne, disque bas)
+            # Détection des transitions (serveur en ligne/hors ligne, joueurs, disque bas)
             _check_service_transition()
+            _check_players_transition()
             _check_disk_transition(system_stats())
 
             with _state_lock:
