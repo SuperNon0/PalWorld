@@ -447,9 +447,16 @@ def build_notifications(state, stats):
 
 
 # --------------------------------------------- notifications Discord (botpanel)
-def _post_notify(url, slug):
-    """POST {"id": slug} sur <url>/api/notify. Retourne (succès, détail)."""
-    payload = json.dumps({"id": slug}).encode()
+def _post_notify(url, slug, variables=None):
+    """POST {"id": slug, "vars": {...}} sur <url>/api/notify. (succès, détail).
+
+    ``variables`` remplit les placeholders {var:nom} des templates du botpanel :
+    le panel envoie ses valeurs dynamiques directement, sans passer par Home
+    Assistant."""
+    body = {"id": slug}
+    if variables:
+        body["vars"] = variables
+    payload = json.dumps(body).encode()
     request = urllib.request.Request(
         url.rstrip("/") + "/api/notify", data=payload,
         headers={"Content-Type": "application/json"}, method="POST",
@@ -468,7 +475,42 @@ def _post_notify(url, slug):
         return False, str(exc)
 
 
-def notify_external(event):
+def _notify_vars(extra=None):
+    """Variables dynamiques envoyées au botpanel (remplissent les {var:nom} des
+    templates) : mêmes valeurs que les capteurs, plus nom et adresse du serveur.
+    Robuste : n'échoue jamais — une notification ne doit pas casser sur une valeur."""
+    variables = {}
+    try:
+        for entity, value, attrs in _ha_states():
+            name = entity.replace("sensor.palworld_", "")
+            variables[name] = value
+            if name == "joueurs" and "max" in attrs:
+                variables["joueurs_max"] = attrs["max"]
+            if name == "ram" and "total" in attrs:
+                variables["ram_total"] = attrs["total"]
+    except Exception as exc:  # jamais bloquant
+        logging.warning("Variables de notification indisponibles : %s", exc)
+    try:
+        with _state_lock:
+            variables["playit"] = load_state().get("playit_address", "")
+    except OSError:
+        pass
+    try:
+        variables["serveur"] = palworld_config.unquote(
+            palworld_config.read_settings(SETTINGS_FILE).get("ServerName", ""))
+    except OSError:
+        pass
+    try:
+        variables["ip"] = f"{local_ip()}:{game_port()}"
+    except OSError:
+        pass
+    if extra:
+        variables.update(extra)
+    # Le botpanel attend des chaînes : on convertit tout (None -> "").
+    return {k: ("" if v is None else str(v)) for k, v in variables.items()}
+
+
+def notify_external(event, extra_vars=None):
     """Déclenche la notification botpanel associée à un événement, si configurée."""
     with _state_lock:
         state = load_state()
@@ -478,18 +520,29 @@ def notify_external(event):
     slug = (state.get("notify_slugs") or {}).get(event, "")
     if not url or not slug:
         return
-    ok, detail = _post_notify(url, slug)
+    ok, detail = _post_notify(url, slug, _notify_vars(extra_vars))
     if not ok:
         logging.warning("Notification botpanel (%s) échouée : %s", event, detail)
 
 
-def notify_external_async(event):
+def notify_external_async(event, extra_vars=None):
     """Envoi non bloquant : ne ralentit jamais l'action qui l'a déclenché."""
-    threading.Thread(target=notify_external, args=(event,), daemon=True).start()
+    threading.Thread(target=notify_external, args=(event, extra_vars), daemon=True).start()
 
 
 def _on_backup_done(returncode):
-    notify_external_async("backup_done" if returncode == 0 else "backup_failed")
+    if returncode != 0:
+        notify_external_async("backup_failed")
+        return
+    extra = {}
+    try:
+        files = sorted(BACKUP_DIR.glob("palworld-*.tar.gz"), key=lambda f: f.stat().st_mtime)
+        if files:
+            extra["sauvegarde_nom"] = files[-1].name
+            extra["sauvegarde_taille"] = f"{files[-1].stat().st_size / 1e6:.0f} Mo"
+    except OSError:
+        pass
+    notify_external_async("backup_done", extra)
 
 
 # ----------------------------------------------- Home Assistant (valeurs dynamiques)
@@ -1014,7 +1067,7 @@ def api_notify_test():
         url = (load_state().get("notify_url") or "").strip()
     if not url:
         return jsonify(error="Renseigne d'abord l'URL du botpanel (puis Enregistre)."), 400
-    ok, detail = _post_notify(url, slug)
+    ok, detail = _post_notify(url, slug, _notify_vars())
     if ok:
         return jsonify(ok=True, detail=detail)
     return jsonify(error=f"Échec de l'envoi : {detail}"), 502
