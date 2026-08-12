@@ -90,14 +90,21 @@
 | Joueur connecté / déconnecté | `joueur` (le pseudo concerné) |
 | Sauvegarde terminée | `sauvegarde_nom`, `sauvegarde_taille` |
 
-**Exemples — ce que tu écris (botpanel) → ce que ça affiche (Discord) :**
+**Modèles prêts à copier — un par événement** (à gauche ce que tu écris dans le
+botpanel, à droite le rendu) :
 
-| Template écrit dans le botpanel | Résultat affiché |
-|---|---|
-| `🟢 {var:serveur} est en ligne`<br>`👥 {var:joueurs}/{var:joueurs_max} joueurs · {var:fps} FPS` | 🟢 **Mon Serveur Palworld** est en ligne<br>👥 3/32 joueurs · 58 FPS |
-| `👋 {var:joueur} a rejoint {var:serveur}`<br>`Total : {var:joueurs} joueur(s) en ligne` | 👋 **Noe** a rejoint **Mon Serveur Palworld**<br>Total : 4 joueur(s) en ligne |
-| `💾 Sauvegarde OK : {var:sauvegarde_nom}`<br>`Taille : {var:sauvegarde_taille}` | 💾 Sauvegarde OK : palworld-20260812-050000.tar.gz<br>Taille : 88 Mo |
-| `⬆️ Mise à jour serveur dispo : {var:maj_serveur}`<br>`Version actuelle : {var:version}` | ⬆️ Mise à jour serveur dispo : oui<br>Version actuelle : v0.6.5 |
+| Événement | Template (botpanel) | Résultat affiché |
+|---|---|---|
+| 🟢 Serveur démarré | `🟢 **{var:serveur}** est en ligne !`<br>`🎮 Adresse : {var:playit}`<br>`👥 {var:joueurs}/{var:joueurs_max} · ⚡ {var:fps} FPS` | 🟢 **Mon Serveur Palworld** est en ligne !<br>🎮 Adresse : abc123.playit.gg:45678<br>👥 0/32 · ⚡ 60 FPS |
+| 🔴 Serveur arrêté / hors ligne | `🔴 **{var:serveur}** est hors ligne`<br>`Dernier état : {var:joueurs} joueur(s) · {var:jours} jours en jeu` | 🔴 **Mon Serveur Palworld** est hors ligne<br>Dernier état : 2 joueur(s) · 14 jours en jeu |
+| 🔄 Serveur redémarré | `🔄 **{var:serveur}** a redémarré`<br>`De retour en ligne · build {var:version}` | 🔄 **Mon Serveur Palworld** a redémarré<br>De retour en ligne · build 19348321 |
+| 👋 Joueur connecté | `👋 **{var:joueur}** a rejoint la partie !`<br>`👥 {var:joueurs}/{var:joueurs_max} en ligne · ping moyen {var:ping_moyen} ms` | 👋 **Noe** a rejoint la partie !<br>👥 4/32 en ligne · ping moyen 24 ms |
+| 🚪 Joueur déconnecté | `🚪 **{var:joueur}** a quitté la partie`<br>`👥 {var:joueurs}/{var:joueurs_max} restant(s) : {var:joueurs_noms}` | 🚪 **Noe** a quitté la partie<br>👥 3/32 restant(s) : Alice, Bob, Chris |
+| ⬆️ MAJ serveur dispo | `⬆️ Mise à jour du **serveur** disponible : {var:maj_serveur}`<br>`Build installé : {var:version}` | ⬆️ Mise à jour du **serveur** disponible : oui<br>Build installé : 19348321 |
+| ⬆️ MAJ panel dispo | `⬆️ Mise à jour du **panel** disponible : {var:maj_panel}`<br>`Sur {var:serveur}` | ⬆️ Mise à jour du **panel** disponible : oui<br>Sur Mon Serveur Palworld |
+| 💾 Sauvegarde terminée | `💾 Sauvegarde terminée : {var:sauvegarde_nom}`<br>`Taille {var:sauvegarde_taille} · {var:nb_sauvegardes} archives` | 💾 Sauvegarde terminée : palworld-20260812-050000.tar.gz<br>Taille 88 Mo · 14 archives |
+| ⚠️ Sauvegarde échouée | `⚠️ **Échec** de la sauvegarde sur {var:serveur}`<br>`Disque libre : {var:disque_libre} Go` | ⚠️ **Échec** de la sauvegarde sur Mon Serveur Palworld<br>Disque libre : 3 Go |
+| 💽 Disque faible | `💽 Espace disque faible sur {var:serveur}`<br>`Reste {var:disque_libre} Go · RAM {var:ram}/{var:ram_total} Go` | 💽 Espace disque faible sur Mon Serveur Palworld<br>Reste 3 Go · RAM 12.4/32 Go |
 
 ---
 
