@@ -1,114 +1,95 @@
-# 🐑 Palworld Server + Panel Web
+<p align="center">
+  <img src="docs/images/logo/logo-icon-512.png" width="130" alt="Logo Palworld Panel">
+</p>
 
-Installation **entièrement automatique** d'un serveur dédié Palworld avec un
-panel web d'administration, pour une machine **Ubuntu Server 22.04 / 24.04**
-(typiquement une VM sur un cluster **Proxmox**).
+<h1 align="center">Palworld — Serveur dédié + Panel web</h1>
 
-## Fonctionnalités
+<p align="center">
+  Installation <b>entièrement automatique</b> d'un serveur dédié Palworld et de
+  son <b>panel web d'administration</b> (français), sur Ubuntu Server —
+  typiquement une VM sur un cluster <b>Proxmox</b>.
+</p>
 
-**Serveur**
-- Installation automatique via SteamCMD (app `2394010`)
-- Service systemd `palworld` : démarrage au boot, redémarrage automatique en cas de crash
-- API REST officielle de Palworld activée (pilotage local du serveur)
-- Sauvegarde du monde forcée avant chaque arrêt/redémarrage
+---
 
-**Panel web** (service systemd `palworld-panel`)
-- 🔐 **Connexion** : panel mono-compte (`admin`) protégé par mot de passe ;
-  **auto-login via Cloudflare Access** (login Google) quand on passe par le tunnel,
-  mot de passe conservé pour l'accès direct LAN — voir
-  [`docs/CONNEXION.md`](docs/CONNEXION.md) (mise à jour, changement et
-  réinitialisation du mot de passe)
-- 📝 **Descriptions intégrées** : chaque paramètre de `PalWorldSettings.ini`
-  est expliqué en français dans l'onglet Configuration
-- ℹ️ **Page Infos (compte admin uniquement)** : récapitule tout — adresse du
-  serveur et du panel, mot de passe admin du jeu, accès SSH, ports, chemins
-  et commandes utiles
-- ▶ Démarrer / ■ Arrêter / ⟳ Redémarrer le serveur, plus **arrêt différé**
-  avec compte à rebours annoncé aux joueurs
-- 🖥 Console : logs du serveur en temps réel (journald)
-- 📊 **Graphiques 24 h** : joueurs connectés, FPS serveur, RAM (avec infobulle)
-- ⚙ Édition complète de `PalWorldSettings.ini` depuis le navigateur
-- 👥 Joueurs connectés : niveau, ping, kick/ban avec raison personnalisée,
-  déban par identifiant
-- 📢 Annonces en jeu
-- ⬆ Mise à jour du serveur en un clic (SteamCMD), avec sauvegarde de
-  sécurité du monde avant chaque mise à jour
-- 📦 Sauvegardes du monde : création, **restauration**, suppression,
-  téléchargement, rotation automatique
-- ⏱ **Sauvegardes automatiques** planifiées (intervalle et rétention réglables)
-- 🔄 **Redémarrage quotidien programmable** avec préavis aux joueurs en jeu
-  (5 min et 1 min avant)
-- 📈 RAM et disque de la machine sur le tableau de bord
-- 🌐 **Onglet Accès / Tunnel** : installe et pilote le tunnel playit.gg
-  directement depuis le panel (bouton), affiche le lien d'association
-- 🔔 **Notifications** : alerte quand une mise à jour du serveur ou du panel
-  est disponible, ou en cas d'espace disque faible
-- 🧩 **Onglet Maintenance** : met à jour le serveur de jeu (SteamCMD) **et le
-  panel lui-même** (git pull + redémarrage) en un clic
-- 🥚 **Onglet Reproduction** : calcule l'enfant de deux Pals, tous les couples
-  qui produisent un Pal donné, et **toutes les chaînes d'accouplements** pour
-  atteindre un Pal cible depuis un Pal possédé (hors ligne, 288 Pals)
-- 💬 **Notifications Discord** : le panel prévient un *botpanel* à chaque
-  événement (serveur démarré/arrêté/redémarré, mise à jour, sauvegarde, disque)
-- 🏠 **Home Assistant** : publication de capteurs (joueurs, FPS, RAM…) vers HA,
-  et **intégration HACS** dédiée (voir `custom_components/palworld_panel/`)
+## ✨ Fonctionnalités
 
-## Home Assistant (intégration HACS)
+**Serveur de jeu**
+- Installation automatique via **SteamCMD**, service **systemd** (démarrage au
+  boot, redémarrage auto en cas de crash).
+- API REST officielle de Palworld activée (pilotage local par le panel).
+- Sauvegarde du monde forcée avant chaque arrêt / mise à jour.
 
-Une intégration Home Assistant installable via **HACS** crée un appareil
-« Palworld » avec tous les capteurs du serveur. Voir le guide :
-[`custom_components/palworld_panel/README.md`](custom_components/palworld_panel/README.md).
+**Panel web — Serveur**
+- ▶ **Démarrer / ■ Arrêter / ⟳ Redémarrer**, plus **arrêt différé** avec compte
+  à rebours annoncé aux joueurs.
+- 📊 **Tableau de bord** : joueurs, FPS, uptime, version, RAM, disque, adresse
+  LAN + tunnel, **graphiques 24 h** (joueurs / FPS / RAM).
+- 🖥 **Console** : logs du serveur en temps réel.
+- ⚙ **Configuration** : édition de **tous** les paramètres de
+  `PalWorldSettings.ini` (chaque réglage expliqué), **enregistrement vérifié sur
+  le disque**.
+- 📦 **Sauvegardes** : créer, **restaurer**, supprimer, télécharger, rotation
+  automatique + **sauvegardes planifiées**.
+- 👥 **Joueurs** : niveau, ping, **kick / ban** (raison), déban par identifiant.
+- 📢 **Annonces** en jeu · 🔄 **redémarrage quotidien** programmable (préavis 5
+  et 1 min).
+- 🌐 **Accès / Tunnel** : pilote le tunnel **playit.gg** depuis le panel.
 
-## Prérequis (VM Proxmox recommandée)
+**Panel web — Outils**
+- 🥚 **Reproduction** (hors ligne, 288 Pals) : enfant de deux Pals, tous les
+  couples pour un Pal cible, **toutes les chaînes d'accouplements**, **favoris**,
+  auto-complétion visuelle (photo + n° + type). Sous-onglets dédiés.
+- ⬆ **Maintenance** : met à jour le **serveur** (SteamCMD) **et le panel**
+  (depuis GitHub) en un clic ; détection des MAJ disponibles.
+
+**Intégrations & notifications**
+- 💬 **Notifications Discord** via un *botpanel* à chaque événement : serveur
+  démarré / arrêté / redémarré, **joueur connecté / déconnecté**, MAJ dispo,
+  sauvegarde OK / échec, disque faible — avec **valeurs dynamiques** (`{var:…}` :
+  joueurs, serveur, FPS…) envoyées directement, **sans Home Assistant**.
+- 🏠 **Home Assistant** : publication de capteurs + **intégration HACS** dédiée
+  → voir [`custom_components/palworld_panel/`](custom_components/palworld_panel/README.md).
+
+**Confort & sûreté**
+- 🔐 Panel **mono-compte** (`admin`) protégé par mot de passe, **auto-login
+  Cloudflare Access** optionnel.
+- ♻️ **Anti-cache** : fichiers statiques versionnés → après une mise à jour, le
+  navigateur recharge toujours la dernière version.
+
+---
+
+## 🧰 Prérequis (VM Proxmox recommandée)
 
 | Ressource | Minimum | Recommandé |
 |-----------|---------|------------|
-| CPU       | 4 vCPU  | 6+ vCPU |
-| RAM       | 16 Go   | 32 Go (Palworld consomme beaucoup de RAM) |
-| Disque    | 40 Go   | 60 Go |
-| OS        | Ubuntu Server 22.04 | Ubuntu Server 24.04 |
+| CPU | 4 vCPU | 6+ vCPU |
+| RAM | 16 Go | 32 Go (Palworld consomme beaucoup de RAM) |
+| Disque | 40 Go | 60 Go |
+| OS | Ubuntu Server 22.04 | Ubuntu Server 24.04 |
 
-> ⚠️ Utilisez une **VM** Proxmox, pas un conteneur LXC : SteamCMD et le
-> serveur Palworld fonctionnent mal en LXC non privilégié.
+> ⚠️ Pour le **serveur de jeu**, utilisez une **VM** (pas un LXC non privilégié) :
+> SteamCMD et Palworld y fonctionnent mal.
 
-## Installation
+---
 
-Deux façons de faire : **(A)** tout automatique depuis Proxmox (la VM est créée
-pour toi), ou **(B)** manuelle sur une VM Ubuntu déjà existante.
+## 🚀 Installation
 
-### A. Déploiement automatique depuis Proxmox (recommandé)
-
-À coller **dans le shell de l'hôte Proxmox** (pas dans une VM). Le script crée
-une VM Ubuntu 24.04, la configure et installe le serveur + le panel tout seul :
+### A. Automatique depuis Proxmox (recommandé)
+À coller **dans le shell de l'hôte Proxmox** : crée une VM Ubuntu 24.04 et
+installe serveur + panel tout seul.
 
 ```bash
 bash -c "$(wget -qLO - https://raw.githubusercontent.com/SuperNon0/PalWorld/claude/palworld-install-script-panel-b41cfo/proxmox/palworld-vm.sh)"
 ```
 
-Réglages optionnels via variables d'environnement :
+Réglages optionnels : `VMID`, `CORES`, `RAM`, `DISK`, `STORAGE`, `BRIDGE`,
+`MAX_PLAYERS`, `PANEL_PORT`… en variables d'environnement. Le script affiche à
+la fin l'**adresse du panel** (`http://IP:8080`) et les **mots de passe** ; le
+serveur de jeu (~8 Go) se télécharge ensuite en arrière-plan (suivi dans le
+panel).
 
-```bash
-VMID=210 CORES=6 RAM=32768 DISK=60 STORAGE=local-lvm BRIDGE=vmbr0 \
-  bash -c "$(wget -qLO - .../proxmox/palworld-vm.sh)"
-```
-
-Le script **attend que le panel démarre** (~1 à 2 min ; il récupère l'IP tout
-seul via l'agent invité), puis affiche en clair : l'**adresse du panel**
-(`http://IP:8080`), l'**identifiant `admin` + mot de passe** du panel et le
-**mot de passe admin** du jeu. Tu n'as donc rien à chercher.
-
-Le **serveur de jeu (~8 Go) se télécharge ensuite en arrière-plan** : tu suis
-la progression directement dans le panel (onglet Console / bannière du tableau
-de bord), et il démarre tout seul à la fin. Tu peux quitter le script avec
-Ctrl+C sans risque, tout continue dans la VM.
-
-> Prérequis : un stockage Proxmox pour les disques (`local-lvm` par défaut) et
-> un stockage acceptant les *snippets* (`local` par défaut ; le script tente de
-> l'activer). Défauts : 4 cœurs, 16 Go RAM, 40 Go disque, réseau DHCP.
-
-### B. Installation manuelle sur une VM Ubuntu existante
-
-Sur la VM Ubuntu fraîchement créée :
+### B. Manuelle (VM/LXC Ubuntu existante)
 
 ```bash
 sudo apt update && sudo apt install -y git
@@ -117,128 +98,54 @@ cd PalWorld
 sudo ./install.sh
 ```
 
-À la fin, le script affiche :
-- l'URL du panel (`http://IP_DE_LA_VM:8080`) et son mot de passe ;
-- le mot de passe admin du serveur (API REST / RCON).
+Options : `--game-port`, `--panel-port`, `--panel-password`, `--admin-password`,
+`--max-players`. Le script est **réexécutable** sans écraser le monde ni le mot
+de passe existant.
 
-**Notez ces mots de passe**, ils ne seront plus réaffichés.
+---
 
-### Options du script
+## 🔌 Ports & accès des joueurs
 
-```bash
-sudo ./install.sh \
-  --game-port 8211 \          # port UDP du jeu
-  --panel-port 8080 \         # port HTTP du panel
-  --panel-password monMdp \   # sinon généré aléatoirement
-  --admin-password monMdp \   # sinon généré aléatoirement
-  --max-players 32
-```
+| Port | Proto | Usage | Exposition |
+|------|-------|-------|------------|
+| 8211 | UDP | Serveur de jeu | Internet (redirection) **ou** tunnel |
+| 8080 | TCP | Panel web | **LAN** (ou reverse proxy HTTPS) |
+| 8212 | TCP | API REST Palworld | localhost |
+| 25575 | TCP | RCON (option) | localhost |
 
-Le script est réexécutable sans risque : il met à jour le serveur et le panel
-sans toucher au monde sauvegardé, et conserve le mot de passe admin existant
-(sauf si `--admin-password` est fourni).
+Sans ouvrir de port : l'onglet **Accès / Tunnel** installe **playit.gg**
+(gratuit, connexion sortante) et donne une adresse `xxxxx.playit.gg:PORT` à
+partager. Alternatives : **Tailscale** / **ZeroTier**.
 
-## Ports à ouvrir / rediriger
+---
 
-| Port  | Protocole | Usage | Exposition |
-|-------|-----------|-------|------------|
-| 8211  | UDP | Serveur de jeu | Internet (redirection box/routeur) |
-| 8080  | TCP | Panel web | **LAN uniquement** (ou derrière un reverse proxy HTTPS) |
-| 8212  | TCP | API REST Palworld | localhost (utilisée par le panel) |
-| 25575 | TCP | RCON (optionnel) | localhost |
+## 🎨 Thème (défini par variables)
 
-## Accès des joueurs sans ouvrir de port (playit.gg)
-
-Palworld utilise de l'UDP brut et un serveur dédié n'a pas de relais Steam :
-il faut donc soit rediriger le port 8211 sur ta box, soit passer par un tunnel.
-Le script `tunnel-playit.sh` installe l'agent [playit.gg](https://playit.gg)
-(gratuit) : il se connecte **en sortie** au réseau playit.gg, qui relaie les
-joueurs vers ton serveur. **Aucun port à ouvrir chez toi.**
-
-```bash
-# dans la VM
-sudo /opt/palworld-src/scripts/tunnel-playit.sh   # (déploiement Proxmox)
-# ou, en installation manuelle :
-sudo ./scripts/tunnel-playit.sh
-```
-
-Ensuite (dans le navigateur, une seule fois) :
-1. crée un compte gratuit sur <https://playit.gg> ;
-2. ouvre le lien d'association affiché par le script (ou visible via
-   `journalctl -u playit -f`) pour lier la VM à ton compte ;
-3. crée un tunnel **UDP** vers le port **8211** (adresse locale `127.0.0.1`) ;
-4. playit.gg te donne une adresse `xxxxx.playit.gg:PORT` : tes joueurs la
-   collent dans Palworld (*Rejoindre par IP*).
-
-> Alternatives gratuites également possibles : **Tailscale** ou **ZeroTier**
-> (VPN privé, chaque joueur installe un client) — plus sécurisé, et donne accès
-> au panel à distance.
-
-## Exploitation courante
-
-```bash
-# état des services
-systemctl status palworld
-systemctl status palworld-panel
-
-# logs en direct (aussi disponibles dans l'onglet Console du panel)
-journalctl -u palworld -f
-
-# mise à jour manuelle du serveur
-sudo -u palworld /opt/palworld/scripts/update.sh
-
-# sauvegarde manuelle du monde
-sudo -u palworld /opt/palworld/scripts/backup.sh
-```
-
-### Sauvegardes automatiques et redémarrage quotidien
-
-Tout se règle depuis le bloc **Automatisation** du tableau de bord du panel :
-- sauvegarde automatique du monde à intervalle régulier (1 à 168 h) avec
-  rétention configurable ;
-- redémarrage quotidien du serveur à heure fixe (conseillé : Palworld a des
-  fuites mémoire connues), avec annonces en jeu 5 min et 1 min avant.
-
-La restauration d'une sauvegarde se fait depuis l'onglet **Sauvegardes** :
-le serveur est arrêté, le monde actuel est archivé en sécurité, puis remplacé
-par la sauvegarde choisie, et le serveur redémarre.
-
-## Arborescence installée
+Interface sombre, accent **doré**, titres **serif** (DM Serif Display), corps
+**mono** (DM Mono). **Toutes** les couleurs viennent d'un seul bloc `:root`
+dans [`panel/static/style.css`](panel/static/style.css) ; les polices sont
+**embarquées** ([`panel/static/fonts.css`](panel/static/fonts.css)) → rendu
+**hors ligne**. Modifier le `:root` suffit pour ré-habiller le panel.
 
 ```
-/opt/palworld/
-├── server/            # serveur Palworld (SteamCMD)
-├── panel/             # panel web Flask
-├── scripts/           # update.sh, backup.sh, restore.sh
-├── backups/           # archives du monde (tar.gz)
-└── panel-state.json   # état de l'automatisation (créé par le panel)
-/etc/palworld-panel/config.json   # config du panel (hash du mot de passe…)
-/etc/systemd/system/palworld.service
-/etc/systemd/system/palworld-panel.service
+Fond #0e0f11 · Carte #1c1f25 · Bordure #2a2d35 · Accent doré #e8c547
+Teal #4fc3a1 · Orange #e87c47 · Violet #a78bfa · Rouge #e85c47
+Texte #f0ede6 · Atténué #6b6f7a · Rayon 12px
 ```
 
-## Sécurité
+---
 
-- Le panel tourne sous l'utilisateur système `palworld`, sans privilèges, avec
-  des droits `sudo` limités aux seules commandes `systemctl start/stop/restart palworld`.
-- Le mot de passe du panel est stocké **hashé** dans
-  `/etc/palworld-panel/config.json` et se change depuis l'onglet
-  Configuration du panel (section « Mot de passe du panel »).
-- N'exposez pas le port du panel directement sur Internet : gardez-le en LAN
-  ou placez-le derrière un reverse proxy HTTPS (Nginx Proxy Manager, Caddy…).
+## 🔒 Sécurité
 
-## Design
+- Panel exécuté sous l'utilisateur non-root `palworld`, `sudo` limité aux seules
+  commandes `systemctl start/stop/restart palworld`.
+- Mot de passe du panel **haché** ; API du jeu en **localhost**.
+- N'exposez pas le panel directement sur Internet : LAN ou reverse proxy HTTPS.
 
-Le panel suit la charte graphique du projet : fond quasi noir, texte
-monospace (DM Mono), titres serif dorés (DM Serif Display), accents
-or / teal / orange. Les polices sont **embarquées** dans
-`panel/static/fonts.css` : aucune connexion Internet n'est nécessaire.
+---
 
-Tout le thème est défini par les variables CSS en tête de
-[`panel/static/style.css`](panel/static/style.css) (couleurs, polices,
-rayons) : modifier ce bloc `:root` suffit pour ajuster la charte.
+## 📚 Aller plus loin
 
-## Développement
-
-Voir [DEVELOPMENT.md](DEVELOPMENT.md) pour l'architecture, le lancement du
-panel en local et le workflow GitHub.
+- 🛠️ **Développement / architecture** → [`DEVELOPMENT.md`](DEVELOPMENT.md)
+- 🏠 **Intégration Home Assistant (HACS)** → [`custom_components/palworld_panel/README.md`](custom_components/palworld_panel/README.md)
+- 🖼️ **Logo & déclinaisons** → [`docs/images/logo/`](docs/images/logo/) (icône 1024 / 512 / SVG, bannière, wordmark)
