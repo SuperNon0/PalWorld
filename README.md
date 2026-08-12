@@ -90,8 +90,14 @@
 | Joueur connecté / déconnecté | `joueur` (le pseudo concerné) |
 | Sauvegarde terminée | `sauvegarde_nom`, `sauvegarde_taille` |
 
-Exemple de template :
-> 👋 **{var:joueur}** a rejoint **{var:serveur}** — {var:joueurs}/{var:joueurs_max} joueurs · {var:fps} FPS
+**Exemples — ce que tu écris (botpanel) → ce que ça affiche (Discord) :**
+
+| Template écrit dans le botpanel | Résultat affiché |
+|---|---|
+| `🟢 {var:serveur} est en ligne`<br>`👥 {var:joueurs}/{var:joueurs_max} joueurs · {var:fps} FPS` | 🟢 **Mon Serveur Palworld** est en ligne<br>👥 3/32 joueurs · 58 FPS |
+| `👋 {var:joueur} a rejoint {var:serveur}`<br>`Total : {var:joueurs} joueur(s) en ligne` | 👋 **Noe** a rejoint **Mon Serveur Palworld**<br>Total : 4 joueur(s) en ligne |
+| `💾 Sauvegarde OK : {var:sauvegarde_nom}`<br>`Taille : {var:sauvegarde_taille}` | 💾 Sauvegarde OK : palworld-20260812-050000.tar.gz<br>Taille : 88 Mo |
+| `⬆️ Mise à jour serveur dispo : {var:maj_serveur}`<br>`Version actuelle : {var:version}` | ⬆️ Mise à jour serveur dispo : oui<br>Version actuelle : v0.6.5 |
 
 ---
 
