@@ -752,7 +752,17 @@ def _check_service_transition():
         return
     if online != _last_online:
         _last_online = online
-        notify_external_async("server_online" if online else "server_offline")
+        if online:
+            notify_external_async("server_online")
+        else:
+            # Serveur éteint : joueurs/fps/… sont désormais à 0 (illisibles). On
+            # joint les dernières valeurs connues (juste avant l'arrêt) pour que
+            # la notif « hors ligne » reste parlante.
+            extra = {}
+            if _last_players:
+                extra = {"joueurs": str(len(_last_players)),
+                         "joueurs_noms": ", ".join(sorted(_last_players))}
+            notify_external_async("server_offline", extra)
 
 
 def _check_players_transition():

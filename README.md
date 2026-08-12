@@ -96,7 +96,7 @@ botpanel, à droite le rendu) :
 | Événement | Template (botpanel) | Résultat affiché |
 |---|---|---|
 | 🟢 Serveur démarré | `🟢 **{var:serveur}** est en ligne !`<br>`🎮 Adresse : {var:playit}`<br>`👥 {var:joueurs}/{var:joueurs_max} · ⚡ {var:fps} FPS` | 🟢 **Mon Serveur Palworld** est en ligne !<br>🎮 Adresse : abc123.playit.gg:45678<br>👥 0/32 · ⚡ 60 FPS |
-| 🔴 Serveur arrêté / hors ligne | `🔴 **{var:serveur}** est hors ligne`<br>`Dernier état : {var:joueurs} joueur(s) · {var:jours} jours en jeu` | 🔴 **Mon Serveur Palworld** est hors ligne<br>Dernier état : 2 joueur(s) · 14 jours en jeu |
+| 🔴 Serveur arrêté / hors ligne | `🔴 **{var:serveur}** est hors ligne`<br>`Derniers joueurs : {var:joueurs} — {var:joueurs_noms}` | 🔴 **Mon Serveur Palworld** est hors ligne<br>Derniers joueurs : 2 — Alice, Bob |
 | 🔄 Serveur redémarré | `🔄 **{var:serveur}** a redémarré`<br>`De retour en ligne · build {var:version}` | 🔄 **Mon Serveur Palworld** a redémarré<br>De retour en ligne · build 19348321 |
 | 👋 Joueur connecté | `👋 **{var:joueur}** a rejoint la partie !`<br>`👥 {var:joueurs}/{var:joueurs_max} en ligne · ping moyen {var:ping_moyen} ms` | 👋 **Noe** a rejoint la partie !<br>👥 4/32 en ligne · ping moyen 24 ms |
 | 🚪 Joueur déconnecté | `🚪 **{var:joueur}** a quitté la partie`<br>`👥 {var:joueurs}/{var:joueurs_max} restant(s) : {var:joueurs_noms}` | 🚪 **Noe** a quitté la partie<br>👥 3/32 restant(s) : Alice, Bob, Chris |
