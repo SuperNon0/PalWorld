@@ -90,21 +90,42 @@
 | Joueur connecté / déconnecté | `joueur` (le pseudo concerné) |
 | Sauvegarde terminée | `sauvegarde_nom`, `sauvegarde_taille` |
 
-**Modèles prêts à copier — un par événement** (à gauche ce que tu écris dans le
-botpanel, à droite le rendu) :
+Chaque notification est un **embed Discord** (carte à barre colorée). Modèles
+prêts à copier dans l'éditeur du botpanel — un par événement.
 
-| Événement | Template (botpanel) | Résultat affiché |
-|---|---|---|
-| 🟢 Serveur démarré | `🟢 **{var:serveur}** est en ligne !`<br>`🎮 Adresse : {var:playit}`<br>`👥 {var:joueurs}/{var:joueurs_max} · ⚡ {var:fps} FPS` | 🟢 **Mon Serveur Palworld** est en ligne !<br>🎮 Adresse : abc123.playit.gg:45678<br>👥 0/32 · ⚡ 60 FPS |
-| 🔴 Serveur arrêté / hors ligne | `🔴 **{var:serveur}** est hors ligne`<br>`Derniers joueurs : {var:joueurs} — {var:joueurs_noms}` | 🔴 **Mon Serveur Palworld** est hors ligne<br>Derniers joueurs : 2 — Alice, Bob |
-| 🔄 Serveur redémarré | `🔄 **{var:serveur}** a redémarré`<br>`De retour en ligne · build {var:version}` | 🔄 **Mon Serveur Palworld** a redémarré<br>De retour en ligne · build 19348321 |
-| 👋 Joueur connecté | `👋 **{var:joueur}** a rejoint la partie !`<br>`👥 {var:joueurs}/{var:joueurs_max} en ligne · ping moyen {var:ping_moyen} ms` | 👋 **Noe** a rejoint la partie !<br>👥 4/32 en ligne · ping moyen 24 ms |
-| 🚪 Joueur déconnecté | `🚪 **{var:joueur}** a quitté la partie`<br>`👥 {var:joueurs}/{var:joueurs_max} restant(s) : {var:joueurs_noms}` | 🚪 **Noe** a quitté la partie<br>👥 3/32 restant(s) : Alice, Bob, Chris |
-| ⬆️ MAJ serveur dispo | `⬆️ Mise à jour du **serveur** disponible : {var:maj_serveur}`<br>`Build installé : {var:version}` | ⬆️ Mise à jour du **serveur** disponible : oui<br>Build installé : 19348321 |
-| ⬆️ MAJ panel dispo | `⬆️ Mise à jour du **panel** disponible : {var:maj_panel}`<br>`Sur {var:serveur}` | ⬆️ Mise à jour du **panel** disponible : oui<br>Sur Mon Serveur Palworld |
-| 💾 Sauvegarde terminée | `💾 Sauvegarde terminée : {var:sauvegarde_nom}`<br>`Taille {var:sauvegarde_taille} · {var:nb_sauvegardes} archives` | 💾 Sauvegarde terminée : palworld-20260812-050000.tar.gz<br>Taille 88 Mo · 14 archives |
-| ⚠️ Sauvegarde échouée | `⚠️ **Échec** de la sauvegarde sur {var:serveur}`<br>`Disque libre : {var:disque_libre} Go` | ⚠️ **Échec** de la sauvegarde sur Mon Serveur Palworld<br>Disque libre : 3 Go |
-| 💽 Disque faible | `💽 Espace disque faible sur {var:serveur}`<br>`Reste {var:disque_libre} Go · RAM {var:ram}/{var:ram_total} Go` | 💽 Espace disque faible sur Mon Serveur Palworld<br>Reste 3 Go · RAM 12.4/32 Go |
+**Réglages communs à tous les embeds :**
+- **Miniature** (`icon_url`) — le logo :
+  `https://raw.githubusercontent.com/SuperNon0/PalWorld/claude/palworld-install-script-panel-b41cfo/docs/images/logo/logo-icon-512.png`
+- **Footer** : `{var:serveur}` · **horodatage** (`show_timestamp`) activé.
+
+**Exemple complet — « Serveur démarré » :**
+| Réglage | Valeur |
+|---|---|
+| Couleur | `#4fc3a1` (vert/teal) |
+| Titre | `🟢 {var:serveur} — En ligne` |
+| Message | `Le serveur est prêt, rejoignez la partie !` |
+| Champ (inline) | **🎮 Adresse** = `{var:playit}` |
+| Champ (inline) | **👥 Joueurs** = `{var:joueurs}/{var:joueurs_max}` |
+| Champ (inline) | **⚡ FPS** = `{var:fps}` |
+
+**Tous les événements — couleur · titre · champs :**
+
+| Événement | Couleur | Titre | Champs de l'embed (nom = valeur) |
+|---|---|---|---|
+| 🟢 Serveur démarré | `#4fc3a1` | `🟢 {var:serveur} — En ligne` | 🎮 Adresse = `{var:playit}`<br>👥 Joueurs = `{var:joueurs}/{var:joueurs_max}`<br>⚡ FPS = `{var:fps}` |
+| 🔴 Hors ligne | `#e85c47` | `🔴 {var:serveur} — Hors ligne` | 👥 Derniers joueurs = `{var:joueurs}`<br>📝 Qui = `{var:joueurs_noms}`<br>💽 Disque = `{var:disque_libre} Go` |
+| 🔄 Redémarré | `#e8c547` | `🔄 {var:serveur} — Redémarré` | 🏷️ Build = `{var:version}`<br>💽 Disque = `{var:disque_libre} Go` |
+| 👋 Joueur connecté | `#4fc3a1` | `👋 {var:joueur} a rejoint` | 🖥️ Serveur = `{var:serveur}`<br>👥 En ligne = `{var:joueurs}/{var:joueurs_max}`<br>📶 Ping moyen = `{var:ping_moyen} ms` |
+| 🚪 Joueur déconnecté | `#6b6f7a` | `🚪 {var:joueur} a quitté` | 👥 Restants = `{var:joueurs}/{var:joueurs_max}`<br>📝 Encore là = `{var:joueurs_noms}` |
+| ⬆️ MAJ serveur | `#e8c547` | `⬆️ Mise à jour serveur dispo` | ✅ Disponible = `{var:maj_serveur}`<br>🏷️ Build actuel = `{var:version}` |
+| ⬆️ MAJ panel | `#a78bfa` | `⬆️ Mise à jour panel dispo` | ✅ Disponible = `{var:maj_panel}`<br>🖥️ Serveur = `{var:serveur}` |
+| 💾 Sauvegarde terminée | `#4fc3a1` | `💾 Sauvegarde terminée` | 📁 Fichier = `{var:sauvegarde_nom}`<br>📦 Taille = `{var:sauvegarde_taille}`<br>🗄️ Total = `{var:nb_sauvegardes}` |
+| ⚠️ Sauvegarde échouée | `#e85c47` | `⚠️ Échec de la sauvegarde` | 🖥️ Serveur = `{var:serveur}`<br>💽 Disque libre = `{var:disque_libre} Go` |
+| 💽 Disque faible | `#e87c47` | `💽 Espace disque faible` | 💽 Disque = `{var:disque_libre} Go`<br>🧠 RAM = `{var:ram}/{var:ram_total} Go` |
+
+> Couleurs = charte du projet (vert `#4fc3a1` OK, rouge `#e85c47` alerte, or
+> `#e8c547` info, orange `#e87c47` attention, violet `#a78bfa` panel). Les
+> champs `inline` s'affichent en grille (2-3 par ligne dans Discord).
 
 ---
 
