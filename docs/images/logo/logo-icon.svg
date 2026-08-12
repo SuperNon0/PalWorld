@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+  <radialGradient id="bg" cx="32%" cy="22%" r="90%">
+    <stop offset="0%" stop-color="#1c1f25"/><stop offset="70%" stop-color="#0e0f11"/>
+    <stop offset="100%" stop-color="#0a0b0d"/></radialGradient>
+  <linearGradient id="gg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#f2d76a"/><stop offset="100%" stop-color="#e8c547"/></linearGradient>
+</defs>
+<rect x="16" y="16" width="992" height="992" rx="224" fill="url(#bg)" stroke="rgba(232,197,71,.55)" stroke-width="6"/>
+<rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(0.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(36.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(72.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(108.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(144.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(180.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(216.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(252.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(288.0 512 512)" fill="url(#gg)"/><rect x="469.0" y="140.0" width="86" height="84" rx="20" transform="rotate(324.0 512 512)" fill="url(#gg)"/>
+<circle cx="512" cy="512" r="258" fill="none" stroke="url(#gg)" stroke-width="96"/>
+<circle cx="512" cy="512" r="196" fill="none" stroke="#4fc3a1" stroke-width="9" opacity="0.9"/>
+<ellipse cx="410" cy="466" rx="46" ry="58" fill="#f0ede6"/><ellipse cx="474" cy="414" rx="48" ry="62" fill="#f0ede6"/><ellipse cx="550" cy="414" rx="48" ry="62" fill="#f0ede6"/><ellipse cx="614" cy="466" rx="46" ry="58" fill="#f0ede6"/>
+<path d="M512 700 C 430 700 388 636 400 576 C 410 526 460 500 512 500 C 564 500 614 526 624 576 C 636 636 594 700 512 700 Z" fill="#f0ede6"/>
+</svg>
