@@ -59,6 +59,42 @@
 
 ---
 
+## 🔔 Notifications botpanel — variables disponibles
+
+À chaque événement, le panel envoie ces valeurs au botpanel
+(`POST /api/notify`, champ `vars`). Utilise-les dans tes **templates** avec
+`{var:nom}` (ou `{var:nom|valeur_par_défaut}` si la valeur peut manquer).
+
+**Envoyées avec chaque notification :**
+
+| Variable | Contenu |
+|---|---|
+| `serveur` | Nom du serveur |
+| `statut` | En ligne / Démarrage / Hors ligne |
+| `joueurs` · `joueurs_max` | Joueurs connectés / maximum |
+| `joueurs_noms` | Pseudos connectés (liste) |
+| `fps` | FPS du serveur |
+| `ping_moyen` | Ping moyen des joueurs (ms) |
+| `uptime` · `jours` | Minutes de fonctionnement / jours en jeu |
+| `ram` · `ram_total` | RAM utilisée / totale (Go) |
+| `disque_libre` | Disque libre (Go) |
+| `version` | Build installé |
+| `nb_sauvegardes` · `derniere_sauvegarde` | Nombre / date de la dernière sauvegarde |
+| `maj_serveur` · `maj_panel` | Mise à jour dispo (oui / non) |
+| `ip` · `playit` | Adresse LAN / tunnel |
+
+**En plus, selon l'événement :**
+
+| Événement | Variables supplémentaires |
+|---|---|
+| Joueur connecté / déconnecté | `joueur` (le pseudo concerné) |
+| Sauvegarde terminée | `sauvegarde_nom`, `sauvegarde_taille` |
+
+Exemple de template :
+> 👋 **{var:joueur}** a rejoint **{var:serveur}** — {var:joueurs}/{var:joueurs_max} joueurs · {var:fps} FPS
+
+---
+
 ## 🧰 Prérequis (VM Proxmox recommandée)
 
 | Ressource | Minimum | Recommandé |
